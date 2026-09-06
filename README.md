@@ -10,6 +10,9 @@ It has been running in my house since July 2026.
 
 *Resting state. One line of status, and the rest of the screen is the room.*
 
+*Both screenshots here are cropped to remove identifying information (timestamp,
+name, location) for this project. The live dashboard is not cropped all weird.*
+
 ![The same view with controls and sensor detail shown](media/nursery-monitor-controls.png)
 
 *The same screen after a tap. Recent events, climate, and the control bar appear
