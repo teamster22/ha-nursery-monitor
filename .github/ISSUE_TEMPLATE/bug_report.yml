@@ -9,6 +9,12 @@ body:
         someone else (you) is adapting. Most issues are entity IDs that don't
         exist in your instance. Check your HA logs for "unknown entity" first.
 
+        Also worth knowing before you ask: an LLM wrote essentially all of this
+        code and I'm not a software engineer. If your question is about why the
+        code is written the way it is, there's a real chance I won't know. If
+        it's about what the system actually does in a real house, I probably can
+        help. And this is not a medical device, see DISCLAIMER.md.
+
   - type: textarea
     id: what
     attributes:

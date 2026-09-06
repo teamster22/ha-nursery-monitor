@@ -4,7 +4,9 @@ A wall-mounted Android tablet running Fully Kiosk Browser, showing one Home
 Assistant dashboard view with the nursery camera on it. The goal was Eufy E10
 parity: press a button, see the room, instantly.
 
-> Read [../DISCLAIMER.md](../DISCLAIMER.md) first.
+> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
+> device, and an LLM wrote essentially all of the code here. I'm not a software
+> engineer, so read the config yourself before you run it.
 
 ## The one idea that makes it work
 

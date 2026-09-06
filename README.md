@@ -10,6 +10,37 @@ It has been running in my house since July 2026.
 > convenience automation. It is not a breathing monitor, it is not a medical
 > device, and nothing here should ever be relied on for a child's wellbeing.
 
+> **An LLM wrote essentially all of this code, and I'm not a software engineer.**
+> I steered it, I tested it against my own house, and I threw out what didn't work.
+> But I can't vouch for the quality of the code itself and I can't always explain
+> how a given piece of it works. See
+> [Who wrote this](DISCLAIMER.md#who-wrote-this-and-what-that-means-for-you)
+> for the full version, and please read this config before you run it.
+
+## Who wrote this
+
+I want this near the top rather than buried at the bottom, because it should change
+how you read everything below it.
+
+An LLM wrote essentially all of the YAML in this repository. I directed the work,
+I tested it, and I reversed a fair number of decisions when the data disagreed with
+me. What I did not do is write it, and I couldn't have. I'm not a software engineer
+and I don't have the background to tell you this config is well built or to audit it
+the way somebody who does this professionally would. Ask me why a specific template
+renders the way it does and there's a real chance I won't know.
+
+What I can stand behind is the measurement work. The cry qualifier went from 10
+seconds to 5 after living with it. The confidence decay got rebuilt from scratch
+when a replay against real timestamps showed it would zero out at dawn every
+morning. The household-away veto was designed and then thrown away. The WebRTC
+audio path got diagnosed by counting three concurrent transcodes, not by guessing.
+Every claim in here has a number behind it from a real room with a real child in it.
+
+So: vibe-coded, thoroughly measured. Both are true, the second is the reason to
+look at it, and the first is the reason to read it yourself before you run it. If
+something in here looks wrong to you, you're probably right, and I'd like to hear
+about it.
+
 ## What's actually new here
 
 Plenty of people point an IP camera at a crib, and there are good integrations for
@@ -193,21 +224,6 @@ wake the child.
 lights from a Z-Wave WallMote. It's household light control, not part of the
 monitor, and it's the only thing in the original config that carried opaque device
 IDs. See [docs/wall-remote.md](docs/wall-remote.md) if you want to wire your own.
-
-## About how this was built
-
-An LLM wrote most of this YAML. I want to be upfront about that, because the reason
-to trust any of it isn't the code, it's that every design decision here was tested
-against my actual house and several of them were reversed when the data disagreed.
-
-The cry qualifier went from 10 seconds to 5 after living with it. The confidence
-decay was rebuilt from scratch when a replay against real timestamps showed it
-would zero out at dawn every morning. The household-away veto was designed and then
-thrown away. The WebRTC audio path was diagnosed by measuring three concurrent
-transcodes, not by guessing.
-
-So: vibe-coded, thoroughly measured. Both of those are true and the second one is
-what matters.
 
 ## License
 

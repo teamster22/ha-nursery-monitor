@@ -6,7 +6,9 @@ conclusions were later overturned by real data — see
 because the reasoning about *why* certain signals are useless is still correct, and
 because a design doc that only shows the answer teaches nothing.
 
-> Read [../DISCLAIMER.md](../DISCLAIMER.md) first.
+> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
+> device, and an LLM wrote essentially all of the code here. I'm not a software
+> engineer, so read the config yourself before you run it.
 
 
 **Purpose:** Everything needed to continue this project in a fresh chat. Paste or attach this file at the start of the new Cowork task.

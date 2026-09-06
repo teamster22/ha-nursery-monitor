@@ -1,5 +1,9 @@
 # Frigate setup
 
+> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical device, and an LLM
+> wrote essentially all of the code here. I'm not a software engineer, so read the
+> config yourself before you run it.
+
 Merge [`nursery.yaml`](nursery.yaml) into your existing Frigate `config.yaml`.
 Don't paste it over the whole file.
 

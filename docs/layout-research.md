@@ -2,7 +2,9 @@
 
 What commercial baby monitors put on screen, and what I copied.
 
-> Read [../DISCLAIMER.md](../DISCLAIMER.md) first.
+> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
+> device, and an LLM wrote essentially all of the code here. I'm not a software
+> engineer, so read the config yourself before you run it.
 
 
 **Purpose:** inspiration and a decision framework for laying out the `nursery-monitor` kiosk. Written that month after a long build session that produced a working-but-unsatisfying layout.

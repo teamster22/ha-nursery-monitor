@@ -5,6 +5,29 @@ a child's wellbeing.**
 
 Read that again, because it's the only part of this repository that really matters.
 
+## Who wrote this, and what that means for you
+
+An LLM wrote essentially all of the code in here. I steered it, tested it, argued
+with it, and threw out the parts that didn't survive contact with my house. But I
+didn't write this YAML and I couldn't have.
+
+I'm not a software engineer. I don't have the background to tell you this is well
+built, and I can't audit it the way somebody who does this for a living would. If
+you open an issue asking why a particular template renders the way it does, or
+whether some automation has a race condition in it, there's a real chance I won't
+know the answer. What I can tell you is what I watched it do in my house over
+months of ordinary nights, which is a different thing from understanding it, and
+I'd rather you hear that from me now than work it out on your own later.
+
+So treat this like config you found from a stranger on a forum. That's what it is.
+Read it before you run it, and if something in here looks wrong to you, you're
+probably right. I'd like to hear about it.
+
+The part I will stand behind is the measurements. Every design decision here was
+tested against a real room with a real child in it, and several of them got
+reversed when the data disagreed with me. That's the reason to take any of this
+seriously. The code quality isn't.
+
 ## What this is
 
 Convenience automation. It watches a door sensor and a presence sensor to guess

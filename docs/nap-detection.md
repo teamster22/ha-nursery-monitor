@@ -3,7 +3,9 @@
 How the state machine decides whether she's asleep, and the measurements it rests
 on. Dates are generalized; the numbers are real.
 
-> Read [../DISCLAIMER.md](../DISCLAIMER.md) first.
+> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
+> device, and an LLM wrote essentially all of the code here. I'm not a software
+> engineer, so read the config yourself before you run it.
 
 
 **Status:** this is the design doc, written before any of it was built. Grounded in 3 days of real history plus my answers.

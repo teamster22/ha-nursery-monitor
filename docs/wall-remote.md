@@ -1,5 +1,9 @@
 # The wall remote (ground truth)
 
+> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical device, and an LLM
+> wrote essentially all of the code here. I'm not a software engineer, so read the
+> config yourself before you run it.
+
 Two holds on a Z-Wave wall remote declare ground truth: **hold top-left** means
 "she's down," **hold bottom-left** means "she's up."
 
