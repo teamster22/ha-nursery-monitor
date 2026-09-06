@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Home Assistant help
+    url: https://community.home-assistant.io/
+    about: >
+      General HA questions belong in the community forum, not here. And before
+      opening any issue: this is NOT a medical device and does not monitor
+      breathing. Read DISCLAIMER.md in the repo root.

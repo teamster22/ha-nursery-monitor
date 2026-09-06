@@ -1,0 +1,499 @@
+# ============================================================================
+# ha-nursery-monitor — cry alerting, snooze, and watchdogs
+#
+# Cry detection comes from Frigate's audio classifier (YAMNet `crying` label)
+# on the camera's AAC audio stream — see frigate/README.md.
+#
+# A cry must persist past input_number.nursery_cry_qualify_seconds before it
+# raises an alert. That value started at 10 s and was cut to 5 s after live
+# measurement showed 10 s was slower than a parent already halfway up the
+# stairs. Tune it to your own house; the helper exists so you don't edit YAML.
+#
+# ⚠️ Read DISCLAIMER.md first.
+# ============================================================================
+
+automation:
+- alias: Nursery — Baby crying (critical)
+  description: '⚠️ TEMPORARY AUDIENCE (July 2026, I): notify target narrowed notify.parents
+    → notify.parents for the Nursery Monitor tablet build-out. REVERT TO notify.parents once
+    the tablet is stable (Nursery_Monitor_Tablet_Plan.md §11). Decision July 2026: hold through the
+    N7 bake-in; the revert is an N7 EXIT CRITERION.
+
+
+    --- Frigate audio detection hears crying in the nursery for input_number.nursery_cry_qualify_seconds
+    (UI-TUNABLE) -> iOS CRITICAL alert (bypasses silent/DND) with a nursery snapshot. Trailing cooldown
+    = input_number.nursery_alert_cooldown_minutes (UI-TUNABLE). BOTH knobs are on the v3 Nursery view
+    under Alert Tuning. TUNING: if 3am false positives appear, raise audio min_volume (currently 300)
+    or the crying threshold (0.75) in Frigate config.yaml BEFORE weakening this automation.
+
+
+    === BABYSITTER SNOOZE (I, July 2026) ===
+
+    This automation is gated by input_boolean.nursery_cry_alerts_snoozed. When a snooze is running,
+    PHONE cry pushes stop; nothing else changes.
+
+    ⚠️ THE TABLET IS DELIBERATELY NOT GATED. automation.nursery_monitor_qualified_cry has no snooze
+    condition, so the nursery tablet keeps waking and chiming exactly as normal — the babysitter is
+    standing next to it and it is THEIR monitor. Silencing it would invert the intent.
+
+    ⚠️ automation.nursery_camera_offline_heartbeat is also NOT gated: ''the monitor is dead'' must still
+    reach the phones during a snooze. A snooze silences NOISE, never a FAULT.
+
+    Snooze lifecycle lives in automation.nursery_cry_snooze_manager + _expiry; the expiry is a once-a-minute
+    poll against a restart-surviving input_datetime, so a forgotten or reboot-orphaned snooze self-heals
+    rather than persisting silently.
+
+
+    ⚠️ THE SNOOZE CONDITION IS `not: [state ''on'']`, NOT `state: ''off''` — same fail-safe reasoning
+    as the door gate below. An `unknown` helper (fresh creation, restored-state hiccup) must degrade
+    to ALERTING, never to silence.
+
+
+    === DOOR SUPPRESSION + 90s GRACE (I, July 2026) ===
+
+    Do not alert while the nursery door is OPEN (an adult is tending her), and not for 90 SECONDS AFTER
+    it closes (they are still within earshot).
+
+
+    ⚠️ WHY THERE ARE TWO TRIGGERS — DO NOT DELETE ''grace_expired''. ''cry'' is a `for:`-qualified state
+    trigger, and those fire ONCE per off->on transition. If she starts crying 30s into the 90s grace
+    and keeps crying, ''cry'' fires, the condition blocks it, and NOTHING EVER RE-EVALUATES — the alert
+    is LOST ENTIRELY, not delayed. ''grace_expired'' re-checks when the grace lapses. RULE: any suppression
+    window on a `for:`-triggered automation needs a trigger for that window''s EXPIRY.
+
+
+    ⚠️ WHY THE DOOR CHECK IS A TEMPLATE, NOT `state: ''off'' for: 90s`. The native form evaluates FALSE
+    on `unavailable`/`unknown`, so one dead door-sensor battery would suppress every cry alert forever
+    with no outward sign. Verified in the wild July 2026: this sensor really does flick to `unavailable`.
+    The template returns TRUE for unavailable/unknown so a broken sensor fails TOWARD alerting. NEVER
+    simplify it.
+
+
+    90s is hardcoded deliberately — a physical constant (time to walk out of earshot), not a preference.
+
+
+    ⚠️ RESIDUAL RISK, ACCEPTED: a door sensor stuck reporting ''on'' suppresses alerts while it reads
+    open. Optional guard discussed and NOT implemented: only suppress while the door has been open <15
+    min.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_crying_sound
+    to: 'on'
+    for:
+      seconds: '{{ states(''input_number.nursery_cry_qualify_seconds'') | int(5) }}'
+    id: cry
+    note: Primary path. Fires once per off->on transition of the crying sensor.
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    to: 'off'
+    for:
+      seconds: 90
+    id: grace_expired
+    note: Grace-window backstop. Without this, a cry starting DURING the 90s grace and continuing is
+      never re-evaluated and the alert is lost entirely.
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: input_boolean.nursery_cry_alerts_snoozed
+      state: 'on'
+    note: BABYSITTER SNOOZE GATE. Written as not:[state 'on'] so an unknown/unavailable helper degrades
+      to ALERTING, never to silence. Phones only — the tablet is not gated.
+  - condition: state
+    entity_id: binary_sensor.nursery_crying_sound
+    state: 'on'
+    note: Redundant for 'cry'; load-bearing for 'grace_expired' — only alert if she is STILL crying
+      when the grace lapses.
+  - condition: template
+    value_template: '{% set d = states.binary_sensor.nursery_door_open %}{% if d is none or d.state
+      in [''unavailable'',''unknown''] %}true{% elif d.state == ''on'' %}false{% else %}{{ (as_timestamp(now())
+      - as_timestamp(d.last_changed)) > 90 }}{% endif %}'
+    note: FAIL-SAFE door gate. Returns true for unavailable/unknown so a dead sensor battery cannot
+      silently kill all cry alerts.
+  actions:
+  - action: notify.parents
+    data:
+      title: 👶 Baby is crying
+      message: Crying detected in the nursery.
+      data:
+        tag: nursery-crying
+        group: nursery
+        channel: alarm_stream
+        ttl: 0
+        priority: high
+        image: /api/camera_proxy/camera.nursery
+        push:
+          sound:
+            name: default
+            critical: 1
+            volume: 1
+  - delay:
+      minutes: '{{ states(''input_number.nursery_alert_cooldown_minutes'') | int(3) }}'
+  mode: single
+- alias: Nursery camera offline (heartbeat)
+  description: '⚠️ TEMPORARY AUDIENCE (July 2026, I): both notify targets narrowed notify.parents
+    → notify.parents for the Nursery Monitor tablet build-out. REVERT TO notify.parents once
+    the tablet is stable and complete (tracked in Nursery_Monitor_Tablet_Plan.md §11). --- RELIABILITY
+    GUARD for the baby monitor. If camera.nursery is unavailable for 5 minutes the monitor is effectively
+    dead and we would not know - a silent failure is the worst outcome for this device. FIXED July 2026:
+    the recovery branch used to fire on ANY return to ''recording'', so a 20-second ffmpeg blip produced
+    a ''back online'' alert for an outage that was never announced. input_boolean.nursery_camera_outage_alerted
+    now gates it - recovery only notifies if the offline alert actually fired. Short blips are now silent,
+    by design.'
+  triggers:
+  - trigger: state
+    entity_id: camera.nursery
+    to:
+    - unavailable
+    - unknown
+    for:
+      minutes: 5
+    id: down
+  - trigger: state
+    entity_id: camera.nursery
+    from:
+    - unavailable
+    - unknown
+    to: recording
+    id: up
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: down
+      sequence:
+      - action: notify.parents
+        data:
+          title: ⚠️ Nursery camera OFFLINE
+          message: The baby monitor has been unreachable for 5 minutes. Cry alerts are NOT working.
+          data:
+            tag: nursery-camera-health
+            group: nursery
+            channel: alarm_stream
+            ttl: 0
+            priority: high
+            push:
+              sound:
+                name: default
+                critical: 1
+                volume: 1
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.nursery_camera_outage_alerted
+    - conditions:
+      - condition: trigger
+        id: up
+      - condition: state
+        entity_id: input_boolean.nursery_camera_outage_alerted
+        state: 'on'
+      sequence:
+      - action: notify.parents
+        data:
+          title: ✅ Nursery camera back online
+          message: Baby monitor recovered. Cry alerts are active again.
+          data:
+            tag: nursery-camera-health
+            group: nursery
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.nursery_camera_outage_alerted
+  mode: single
+- alias: Nursery — Stamp last cry
+  description: 'Stamps input_datetime.nursery_last_cry every time Frigate''s audio detection reports
+    crying in the nursery. Exists because binary_sensor.nursery_crying_sound''s own last_changed resets
+    on every off-transition, so it cannot answer ''when did she last cry?'' — same reason input_datetime.nursery_last_woke
+    exists alongside the nap sensor. Stamps RAW cry-on events, not the 10s qualified cry the monitor
+    tablet will use to wake: a two-second squawk is still a cry and belongs in the record. Consumers:
+    the Nursery Monitor tablet dashboard (Nursery_Monitor_Tablet_Plan.md, phase N3) and the v3 Nursery
+    view.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_crying_sound
+    to: 'on'
+  conditions: []
+  actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.nursery_last_cry
+    data:
+      timestamp: '{{ as_timestamp(now()) }}'
+  mode: single
+- alias: Nursery — Stamp door last opened
+  description: 'Stamps input_datetime.nursery_door_last_opened every time the nursery door opens. Exists
+    for the same reason as automation.nursery_stamp_last_cry: binary_sensor.nursery_door_open''s own
+    last_changed resets on every CLOSE, so while the door is shut it reports when it was shut — not
+    when it was last opened, which is the question a parent is actually asking. Consumer: the nursery-monitor
+    kiosk dashboard (Nursery_Monitor_Tablet_Plan.md, phase N5). Mirrors the nursery_last_woke / nap-8
+    house pattern.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    to: 'on'
+  conditions: []
+  actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.nursery_door_last_opened
+    data:
+      timestamp: '{{ as_timestamp(now()) }}'
+  mode: single
+- alias: Nursery — Cry snooze manager
+  description: 'Runs the phone-cry-alert snooze lifecycle. I''s use case: a babysitter is home, we
+    are out, and we do not want cry pushes on our phones — but we absolutely do not want to forget to
+    turn them back on and then miss a real cry once we are home.
+
+
+    FLOW: set the minutes (input_number.nursery_cry_snooze_minutes, open choice 5-720), flip input_boolean.nursery_cry_alerts_snoozed
+    on. This stamps an expiry into input_datetime.nursery_cry_snooze_until and confirms by push. Either
+    the expiry passes (see automation.nursery_cry_snooze_expiry) or the boolean is turned off by hand
+    — BOTH paths land in the same ''off'' branch here, so the system returns to baseline identically
+    either way. That symmetry is the requirement, not an implementation detail.
+
+
+    === SCOPE: PHONES ONLY — THE TABLET IS 100% UNAFFECTED ===
+
+    Only automation.nursery_baby_crying_critical (notify.parents / the mobile group) consults the
+    snooze flag. automation.nursery_monitor_qualified_cry is deliberately NOT gated: the tablet still
+    wakes, still chimes, still behaves exactly as normal, because the babysitter is standing next to
+    it and it is their monitor. Snoozing the sitter''s own alarm would be the opposite of the intent.
+
+    ⚠️ automation.nursery_camera_offline_heartbeat is ALSO not gated — ''the monitor is dead'' must
+    still reach the phones even while cry alerts are snoozed. A snooze silences NOISE, never a FAULT.
+
+
+    === WHY AN input_datetime AND NOT A timer ===
+
+    A `timer` helper defaults to restore: false, so an HA restart mid-snooze would leave the timer idle
+    while input_boolean.nursery_cry_alerts_snoozed stayed ON — a permanently snoozed baby monitor with
+    nothing left to clear it. That is the exact fail-silent shape this project keeps hitting. An input_datetime
+    restores across restarts, and the expiry automation re-checks it every minute AND on HA start, so
+    a reboot self-heals within 60s. Fail toward alerting.'
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.nursery_cry_alerts_snoozed
+    from: 'off'
+    to: 'on'
+    id: snoozed
+  - trigger: state
+    entity_id: input_boolean.nursery_cry_alerts_snoozed
+    from: 'on'
+    to: 'off'
+    id: restored
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: snoozed
+      sequence:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.nursery_cry_snooze_until
+        data:
+          timestamp: '{{ (as_timestamp(now()) + (states(''input_number.nursery_cry_snooze_minutes'')
+            | float(120)) * 60) | int }}'
+        note: Stamp the absolute expiry. Absolute, not a countdown, so it survives restarts.
+      - action: notify.parents
+        data:
+          title: 🔕 Phone cry alerts snoozed
+          message: Until {{ (as_timestamp(now()) + (states('input_number.nursery_cry_snooze_minutes')
+            | float(120)) * 60) | timestamp_custom('%-I:%M %p', true) }} ({{ states('input_number.nursery_cry_snooze_minutes')
+            | int }} min). The nursery tablet is unaffected and still chiming. Alerts restore automatically.
+          data:
+            tag: nursery-cry-snooze
+            group: nursery
+        note: Confirms scope explicitly so nobody assumes the tablet went quiet too.
+      alias: Snooze engaged
+    - conditions:
+      - condition: trigger
+        id: restored
+      sequence:
+      - action: notify.parents
+        data:
+          title: 🔔 Phone cry alerts are back ON
+          message: Cry notifications will reach your phones again.
+          data:
+            tag: nursery-cry-snooze
+            group: nursery
+        note: Same tag as the snooze notice so it REPLACES it in the shade — the tray shows current
+          truth, not history. Fires for BOTH the timed expiry and a manual early cancel.
+      alias: Snooze ended — shared by timed expiry and manual cancel
+  mode: queued
+  max: 5
+- alias: Nursery — Cry snooze expiry
+  description: 'THE FORGET-PROOF HALF. Clears input_boolean.nursery_cry_alerts_snoozed once input_datetime.nursery_cry_snooze_until
+    has passed. Turning the boolean off is all this does — automation.nursery_cry_snooze_manager then
+    sends the ''alerts are back ON'' push, so the timed expiry and a manual early cancel produce identical
+    behaviour.
+
+
+    === WHY A time_pattern WATCHDOG AND NOT A `for:` TRIGGER OR A timer ===
+
+    This is the fourth incarnation of the same lesson on this project. A `for:`-qualified trigger only
+    arms on a transition it OBSERVES, so it cannot recover if the boolean is already on when HA restarts
+    or the automation reloads. A `timer` helper defaults to restore: false and would simply be gone
+    after a reboot, leaving the flag stuck ON forever. Either way the failure mode is a **permanently
+    snoozed baby monitor with nothing left to clear it** — silent, invisible, and exactly what I asked
+    to be protected from (''we do not want to forget to manually reenable the alerts and then miss cry
+    alerts once we are returned home'').
+
+
+    A once-a-minute poll against an absolute, restart-surviving timestamp has none of those failure
+    modes: it re-derives the answer from scratch every 60 seconds, so any wedge — restart, reload, clock
+    change, manual meddling with the helper — self-heals within a minute. The `homeassistant` start
+    trigger closes the boot-time gap immediately rather than waiting for the next minute tick.
+
+
+    ⚠️ DO NOT ''optimise'' this into a timer or a `for:` trigger. The polling is the safety property.
+
+
+    The unknown/unavailable guard matters too: if the expiry stamp is missing or corrupt we CLEAR the
+    snooze rather than leave it running, because an unreadable deadline must never mean ''snoozed indefinitely''.'
+  triggers:
+  - trigger: time_pattern
+    minutes: /1
+    id: poll
+    note: Once a minute. Cheap, and re-derives the answer from scratch every time.
+  - trigger: homeassistant
+    event: start
+    id: boot
+    note: Closes the boot-time gap without waiting for the next minute tick.
+  conditions:
+  - condition: state
+    entity_id: input_boolean.nursery_cry_alerts_snoozed
+    state: 'on'
+    note: Nothing to do unless a snooze is actually running.
+  - condition: template
+    value_template: '{% set t = state_attr(''input_datetime.nursery_cry_snooze_until'',''timestamp'')
+      %}{% if t is not number %}true{% else %}{{ as_timestamp(now()) >= t }}{% endif %}'
+    note: 'FAIL-SAFE: a missing or non-numeric expiry returns TRUE, clearing the snooze. An unreadable
+      deadline must never mean ''snoozed forever''.'
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.nursery_cry_alerts_snoozed
+    note: The manager automation handles the notification, so timed expiry and manual cancel are indistinguishable
+      downstream.
+  mode: single
+- alias: Nursery — Tablet snooze manager
+  description: 'Tablet-side twin of automation.nursery_cry_snooze_manager. Silences the NURSERY TABLET''s
+    cry response (chime + screen wake) for a chosen duration, then restores automatically.
+
+
+    Same forget-proof design as the phone snooze, for the same reason: a snooze that outlives its intent
+    turns a baby monitor into an ornament. Set minutes on input_number.nursery_tablet_snooze_minutes
+    (open choice 5-720), flip input_boolean.nursery_tablet_alerts_snoozed on — this stamps an absolute
+    expiry into input_datetime.nursery_tablet_snooze_until and confirms by push. Either the expiry passes
+    (automation.nursery_tablet_snooze_expiry) or it is switched off by hand; BOTH land in the same ''off''
+    branch here, so the return to baseline is identical either way.
+
+
+    ⚠️ SCOPE: TABLET ONLY. The PHONE cry push (automation.nursery_baby_crying_critical) is NOT gated
+    by this flag — it has its own separate snooze. The two are deliberately independent so you can silence
+    the panel in the bedroom while still being alerted on your phone, or vice versa. automation.nursery_camera_offline_heartbeat
+    is gated by neither: a snooze silences NOISE, never a FAULT.
+
+
+    ⚠️ WHY AN input_datetime AND NOT A timer: a `timer` helper defaults to restore: false, so an HA
+    restart mid-snooze would leave the timer gone while the boolean stayed ON — a permanently silenced
+    tablet with nothing left to clear it. An input_datetime restores across restarts and the expiry
+    automation re-derives from it every 60s, so a reboot self-heals. Fail toward alerting.'
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.nursery_tablet_alerts_snoozed
+    from: 'off'
+    to: 'on'
+    id: snoozed
+  - trigger: state
+    entity_id: input_boolean.nursery_tablet_alerts_snoozed
+    from: 'on'
+    to: 'off'
+    id: restored
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: snoozed
+      sequence:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.nursery_tablet_snooze_until
+        data:
+          timestamp: '{{ (as_timestamp(now()) + (states(''input_number.nursery_tablet_snooze_minutes'')
+            | float(120)) * 60) | int }}'
+        note: Absolute expiry, so it survives restarts.
+      - action: notify.parents
+        data:
+          title: 🔕 Nursery TABLET alerts snoozed
+          message: Until {{ (as_timestamp(now()) + (states('input_number.nursery_tablet_snooze_minutes')
+            | float(120)) * 60) | timestamp_custom('%-I:%M %p', true) }} ({{ states('input_number.nursery_tablet_snooze_minutes')
+            | int }} min). The tablet will not chime or wake. Your PHONE alerts are unaffected.
+          data:
+            tag: nursery-tablet-snooze
+            group: nursery
+        note: States the scope explicitly so nobody assumes phone alerts went quiet too.
+      alias: Snooze engaged
+    - conditions:
+      - condition: trigger
+        id: restored
+      sequence:
+      - action: notify.parents
+        data:
+          title: 🔔 Nursery TABLET alerts are back ON
+          message: The tablet will chime and wake on a qualified cry again.
+          data:
+            tag: nursery-tablet-snooze
+            group: nursery
+        note: Same tag so it REPLACES the snooze notice in the shade. Fires for BOTH timed expiry and
+          manual cancel.
+      alias: Snooze ended — shared by timed expiry and manual cancel
+  mode: queued
+  max: 5
+- alias: Nursery — Tablet snooze expiry
+  description: 'THE FORGET-PROOF HALF of the tablet snooze. Clears input_boolean.nursery_tablet_alerts_snoozed
+    once input_datetime.nursery_tablet_snooze_until has passed. Turning the boolean off is ALL this
+    does — automation.nursery_tablet_snooze_manager sends the ''back ON'' push, so timed expiry and
+    manual cancel are indistinguishable downstream.
+
+
+    ⚠️ WHY A time_pattern WATCHDOG AND NOT A `for:` TRIGGER OR A timer. A `for:`-qualified trigger only
+    arms on a transition it OBSERVES, so it cannot recover if the boolean is already on when HA restarts
+    or the automation reloads. A `timer` helper defaults to restore: false and would simply be gone
+    after a reboot, leaving the flag stuck ON forever. Either failure leaves a **permanently silenced
+    baby monitor with nothing left to clear it** — invisible, and exactly what the design exists to
+    prevent. A once-a-minute poll against an absolute, restart-surviving timestamp re-derives the answer
+    from scratch, so any wedge self-heals within a minute; the `homeassistant` start trigger closes
+    the boot gap immediately.
+
+    ⚠️ DO NOT ''optimise'' this into a timer or a `for:` trigger. The polling IS the safety property.
+
+
+    The unknown/unavailable guard matters too: a missing or corrupt expiry CLEARS the snooze rather
+    than leaving it running, because an unreadable deadline must never mean ''silenced indefinitely''.'
+  triggers:
+  - trigger: time_pattern
+    minutes: /1
+    id: poll
+    note: Once a minute. Cheap, and re-derives the answer from scratch every time.
+  - trigger: homeassistant
+    event: start
+    id: boot
+    note: Closes the boot-time gap without waiting for the next minute tick.
+  conditions:
+  - condition: state
+    entity_id: input_boolean.nursery_tablet_alerts_snoozed
+    state: 'on'
+    note: Nothing to do unless a snooze is running.
+  - condition: template
+    value_template: '{% set t = state_attr(''input_datetime.nursery_tablet_snooze_until'',''timestamp'')
+      %}{% if t is not number %}true{% else %}{{ as_timestamp(now()) >= t }}{% endif %}'
+    note: 'FAIL-SAFE: a missing or non-numeric expiry returns TRUE, clearing the snooze. An unreadable
+      deadline must never mean ''silenced forever''.'
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.nursery_tablet_alerts_snoozed
+    note: The manager handles the notification, so timed expiry and manual cancel are indistinguishable.
+  mode: single

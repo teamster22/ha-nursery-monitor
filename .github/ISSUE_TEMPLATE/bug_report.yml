@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in the config doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you file: this repo is configuration for one specific house that
+        someone else (you) is adapting. Most issues are entity IDs that don't
+        exist in your instance. Check your HA logs for "unknown entity" first.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part
+      options:
+        - Nap detection (packages/nursery_nap.yaml)
+        - Tablet / parent unit (packages/nursery_monitor.yaml)
+        - Cry alerting (packages/nursery_alerts.yaml)
+        - Frigate / go2rtc audio
+        - Dashboard or theme
+        - Docs
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      render: shell
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Your door sensor, presence sensor, and camera
+      description: Make and model, and how they're integrated (ZHA, Z-Wave, etc).

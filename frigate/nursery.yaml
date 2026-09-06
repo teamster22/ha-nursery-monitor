@@ -1,0 +1,162 @@
+# =============================================================================
+# ha-nursery-monitor — Frigate configuration
+#
+# Merge these fragments into your existing Frigate config.yaml. Do not paste the
+# whole file over yours.
+#
+# Replace <CAMERA_IP>, <RTSP_USER>, <RTSP_PASSWORD>, and <FRIGATE_HOST_IP>.
+# Better yet, put the credentials in Frigate secrets and reference them.
+# =============================================================================
+
+go2rtc:
+  streams:
+    # The camera here is an EmpireTech IPC-T54IR-ZE-S3 (a Dahua OEM). Out of the
+    # box it was unusable for this job: audio was DISABLED on both streams and
+    # both streams were H.265. Fixed in the camera's own web UI:
+    #   Audio  -> enable main + sub, codec AAC, sampling rate 16000
+    #   Encode -> H.264 on both; main 2688x1520@15; sub 704x480 D1 @10;
+    #             I-frame interval = frame rate (1 second GOP) on both
+    # Verify with ffprobe before you go further. The AAC audio stream is the
+    # entire point, because the cry detection runs on it.
+    nursery_main:
+      - rtsp://<RTSP_USER>:<RTSP_PASSWORD>@<CAMERA_IP>:554/cam/realmonitor?channel=1&subtype=0
+    nursery_sub:
+      - rtsp://<RTSP_USER>:<RTSP_PASSWORD>@<CAMERA_IP>:554/cam/realmonitor?channel=1&subtype=1
+
+    # =======================================================================
+    # nursery_kiosk — THE BABY MONITOR'S AUDIO PATH. This is the five lines
+    # worth copying even if you never build the rest.
+    #
+    # WHY IT EXISTS: the camera emits AAC (go2rtc reports the media as
+    # MPEG4-GENERIC/16000). WebRTC cannot carry AAC — only OPUS/PCMU/PCMA — so
+    # WITHOUT this stream go2rtc spawns a SEPARATE ffmpeg transcode for EVERY
+    # connecting viewer. I measured three concurrent transcodes (Firefox, the
+    # iOS app, and an external browser) and a 2.24s WebRTC handshake, which
+    # gave choppy video and intermittent audio. This entry does AAC->OPUS
+    # ONCE, persistently, shared by everyone.
+    #
+    # Diagnoses I ruled out first, so you don't chase them: camera link
+    # (30/30 pings, 1.46ms avg, 0.27ms jitter), host load (1.46 of 16 cores),
+    # camera health (zero errors in 45 min of logs).
+    #
+    # video=copy means NO re-encode. An audio-only transcode is negligible CPU.
+    #
+    # SOURCED FROM nursery_main, NOT nursery_sub, ON PURPOSE: the sub stream is
+    # anamorphic (704x480 storing 16:9) and advanced-camera-card preserves
+    # source aspect, so a sub-sourced card renders about 17% squished.
+    #
+    # !! ONE SOURCE LINE, ffmpeg:-WRAPPED, ON PURPOSE !!
+    # A bare rtsp:// line is what exposes the two-way talkback backchannel.
+    # This is a BABY MONITOR: audio flows nursery -> viewer and NEVER the
+    # reverse. Do not add a second bare-RTSP line under this stream.
+    # =======================================================================
+    nursery_kiosk:
+      - ffmpeg:nursery_main#video=copy#audio=opus
+
+  webrtc:
+    candidates:
+      - <FRIGATE_HOST_IP>:8555
+      - stun:8555
+
+  # SECURITY: go2rtc's API defaults to 0.0.0.0:1984 with NO auth, and
+  # /api/streams returns the full ffmpeg command lines, including your camera
+  # RTSP passwords in cleartext. If Frigate runs with network_mode: host, that
+  # is readable by anything on your LAN. Bind it to loopback.
+  api:
+    listen: "127.0.0.1:1984"
+
+cameras:
+  nursery:
+    ffmpeg:
+      # SOFTWARE DECODE, DELIBERATE. Within 25 minutes of adding this camera the
+      # detect ffmpeg was crash-looping every ~3 minutes:
+      #   [AVHWFramesContext] Failed to sync surface 0x12: 1 (operation failed)
+      #   [hwdownload] Failed to download frame: -5
+      #   watchdog.nursery: Ffmpeg process crashed unexpectedly
+      # Each crash took the camera unavailable for ~20s, which is exactly the
+      # kind of flapping that makes a baby monitor untrustworthy.
+      #
+      # hwaccel_args: [] IS LOAD-BEARING. Frigate defaults this key to "auto",
+      # so OMITTING it re-enables the decoder that crashes. It must be present
+      # and explicitly empty. Cost is negligible: detect is 704x480 @ 10fps.
+      hwaccel_args: []
+      inputs:
+        - path: rtsp://127.0.0.1:8554/nursery_main
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+        - path: rtsp://127.0.0.1:8554/nursery_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+            - audio
+
+    audio:
+      enabled: true
+      # THE LABEL IS `crying`, not crying_sobbing or baby_cry_infant_cry.
+      # Frigate collapses several YAMNet infant-cry classes into one label.
+      # Check /audio-labelmap.txt inside the container before adding any label.
+      listen:
+        - crying
+      # min_volume 300 (default is 500): a nursery is quiet and a whimper should
+      # still clear the floor. RAISE this first if you get 3am false positives.
+      min_volume: 300
+      max_not_heard: 30
+      filters:
+        crying:
+          threshold: 0.75
+
+    detect:
+      fps: 5
+
+    live:
+      streams:
+        Main: nursery_main
+        Sub: nursery_sub
+
+    objects:
+      # `baby` matters for a crib. A swaddled infant lying flat very often does
+      # NOT register as `person`, so person-only tracking misses the one subject
+      # this camera exists to watch. Check your model's labelmap has the class.
+      track:
+        - person
+        - baby
+
+    # Shorter retention than perimeter cameras. Nursery footage is rarely
+    # reviewed, and H.264 costs roughly 2x H.265.
+    record:
+      enabled: true
+      continuous:
+        days: 1
+      alerts:
+        retain:
+          days: 7
+      detections:
+        retain:
+          days: 7
+
+    snapshots:
+      enabled: true
+
+    motion:
+      # Covers the camera's burnt-in timestamp strip ONLY. Draw your own in the
+      # Frigate UI; these coordinates are meaningless for your framing.
+      mask: 0.592,0.039,0.595,0.094,0.976,0.093,0.972,0.026
+
+    zones:
+      crib:
+        # DRAW THIS YOURSELF in the Frigate UI, aimed at your actual crib. These
+        # numbers are from my mounted camera and cannot be adapted.
+        coordinates: 0.62,0.4,0.613,0.712,0.891,0.782,0.92,0.435
+        # loitering_time 0 is correct and deliberate. Do not raise it. A sleeping
+        # baby is stationary, so any dwell requirement is actively harmful here.
+        loitering_time: 0
+        objects:
+          - baby
+          - person
+        friendly_name: Crib
+        # Anti-flicker.
+        inertia: 3
+
+# NOTE ON genai: there is deliberately NO genai block for this camera. No LLM
+# calls on the nursery, for privacy, and to keep the GPU free for detection.

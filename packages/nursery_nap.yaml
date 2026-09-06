@@ -1,0 +1,381 @@
+# ============================================================================
+# ha-nursery-monitor — nap state machine
+#
+# Infers whether the child is asleep from DOOR STATE and PRESENCE alone. No
+# wearable, no mat, no cloud, no camera-based sleep tracking.
+#
+# The key insight the whole thing rests on: a sleeping toddler produces ZERO
+# presence events. So presence firing in a dark room with the door shut means
+# AN ADULT walked in — not that the child woke up.
+#
+# Install: drop this file in config/packages/ and add to configuration.yaml:
+#     homeassistant:
+#       packages: !include_dir_named packages
+#
+# BEFORE IT WILL RUN, replace these with your own entities (see README §Setup):
+#   binary_sensor.nursery_door_contact   your nursery door contact sensor
+#   binary_sensor.nursery_presence_sensor your mmWave/PIR presence sensor
+#   sensor.nursery_light_level_smoothed   your lux sensor (smoothed)
+#   notify.parents                        a notify group of the parents' phones
+#
+# ⚠️ Read DISCLAIMER.md first. This is convenience automation. It is NOT a
+# breathing monitor, NOT a medical device, and must never be relied on for a
+# child's wellbeing.
+# ============================================================================
+
+automation:
+- alias: Nursery Nap 1 — Visit opens (door opened)
+  description: 'SHADOW MODE. Door-open is the entry trigger, NOT presence: a closed door cannot open
+    itself, so this is immune to mmWave bleed-through (see Nursery_Nap_Software_Approach.md 1-4). Covers
+    bedtime, nap, night bottle and morning pickup alike.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_state
+    data:
+      option: tending
+  mode: single
+- alias: Nursery Nap 2 — Visit closes → settling
+  description: 'SHADOW MODE. THE key transition: presence clears + door closed + dark = she''s down.
+    Identical for a bedtime put-down and a 4am re-settle. **Dark check fixed a weekday in July:** was smoothed-only,
+    but the 2-min filter FREEZES at a stale value when the raw light sensor goes silent in the dark
+    (froze at 37 lx while the room was actually 0 lx → blocked the 2pm put-down). Now dark = RAW < 30
+    OR smoothed < 30: raw holds at the true 0 when it freezes, and raw''s noise lives at high values
+    so it never false-passes near 30.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_presence_sensor
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 30
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.nursery_door_open
+    state: 'off'
+  - condition: state
+    entity_id: input_select.nursery_state
+    state:
+    - awake
+    - tending
+    - unknown
+  - condition: or
+    conditions:
+    - condition: numeric_state
+      entity_id: sensor.nursery_presence_sensor_light_sensor_light_level
+      below: 30
+    - condition: numeric_state
+      entity_id: sensor.nursery_light_level_smoothed
+      below: 30
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_state
+    data:
+      option: settling
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.nursery_sleep_started
+    data:
+      timestamp: '{{ as_timestamp(now()) }}'
+  mode: single
+- alias: Nursery Nap 3 — Settling → asleep
+  description: 'SHADOW MODE. Promotes settling → asleep after 8 min shut+quiet. RESTART-SAFE (fixed
+    a weekday in July): the bare `state for: 8min` trigger is orphaned by a restart — on reboot the state restores
+    to ''settling'' with no fresh transition edge, so the 8-min clock never starts and the machine sticks.
+    Fix: elapsed time is measured from input_datetime.nursery_sleep_started (survives restarts), and
+    two extra triggers (homeassistant start + a 2-min poll) re-check it, so a reboot or reload self-heals
+    within 2 min.'
+  triggers:
+  - trigger: state
+    entity_id: input_select.nursery_state
+    to: settling
+    for:
+      hours: 0
+      minutes: 8
+      seconds: 0
+  - trigger: homeassistant
+    event: start
+  - trigger: time_pattern
+    minutes: /2
+  conditions:
+  - condition: state
+    entity_id: input_select.nursery_state
+    state: settling
+  - condition: state
+    entity_id: binary_sensor.nursery_door_open
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.nursery_presence_sensor
+    state: 'off'
+  - condition: template
+    value_template: '{{ states(''input_datetime.nursery_sleep_started'') not in [''unknown'',''unavailable'']
+      and (as_timestamp(now()) - (state_attr(''input_datetime.nursery_sleep_started'',''timestamp'')
+      | float(0))) >= 480 }}'
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_state
+    data:
+      option: asleep
+  mode: single
+- alias: Nursery Nap 4 — Door open sustained → awake
+  description: 'SHADOW MODE. The wake signal is the door STAYING open, not the door-open event — that
+    is what separates a morning pickup from a 4am bottle. Two paths: (a) open 2 min AND the room got
+    lit = she''s up; (b) open 15 min regardless = catch-all, nobody tends a child that long with the
+    door open in the dark. The 04:18 bottle held the door open 5 min in the dark, so it passes under
+    both.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+    id: lit_and_open
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 15
+      seconds: 0
+    id: long_open
+  conditions:
+  - condition: or
+    conditions:
+    - condition: and
+      conditions:
+      - condition: trigger
+        id: lit_and_open
+      - condition: numeric_state
+        entity_id: sensor.nursery_light_level_smoothed
+        above: 30
+    - condition: trigger
+      id: long_open
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_state
+    data:
+      option: awake
+  mode: single
+- alias: Nursery Nap 5 — Ground truth (wall remote holds)
+  description: 'SHADOW MODE. HOLD top-left = ''she''s down''. HOLD bottom-left = ''she''s up''. These
+    were the only two unbound actions on the WallMote (all 4 taps and both right-hand holds are already
+    used by the lights blueprint). IMPORTANT: in shadow mode these set ONLY nursery_ground_truth — they
+    deliberately do NOT touch nursery_state, so inferred vs declared stay independent and we can actually
+    score the machine. Wire the override in after the 2-week run.'
+  triggers:
+  - trigger: state
+    entity_id: event.nursery_wall_remote_scene_001
+    not_from:
+    - unknown
+    - unavailable
+    id: down
+  - trigger: state
+    entity_id: event.nursery_wall_remote_scene_003
+    not_from:
+    - unknown
+    - unavailable
+    id: up
+  conditions:
+  - condition: or
+    conditions:
+    - condition: and
+      conditions:
+      - condition: trigger
+        id: down
+      - condition: state
+        entity_id: event.nursery_wall_remote_scene_001
+        attribute: event_type
+        state: KeyHeldDown
+    - condition: and
+      conditions:
+      - condition: trigger
+        id: up
+      - condition: state
+        entity_id: event.nursery_wall_remote_scene_003
+        attribute: event_type
+        state: KeyHeldDown
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: down
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.nursery_ground_truth
+        data:
+          option: asleep
+    - conditions:
+      - condition: trigger
+        id: up
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.nursery_ground_truth
+        data:
+          option: awake
+  mode: single
+- alias: Nursery Nap 6 — Reconcile on HA start
+  description: 'SHADOW MODE. nursery_state restores across restarts (no ''initial'' set) — restoring
+    ''asleep'' is right, since a restart doesn''t wake anyone. But if the door is OPEN at startup, the
+    restored state is definitely stale: correct it to awake. If the door is closed we leave the restored
+    value alone rather than guessing.'
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.nursery_door_open
+    state: 'on'
+  actions:
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - condition: state
+    entity_id: binary_sensor.nursery_door_open
+    state: 'on'
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_state
+    data:
+      option: awake
+  mode: single
+- alias: Nursery Nap 7 — Expire declaration on new visit
+  description: 'A manual declaration (''she''s down'' / ''she''s up'') stays authoritative until the
+    door opens — because a door-open IS the physical event that makes any previous declaration stale.
+    Without this, one stale tap would pin binary_sensor.nursery_nap forever. Clearing to ''unknown''
+    hands control back to the inferred state machine. Note: this clears the OVERRIDE only; input_select.nursery_state
+    is never touched by a human, so inferred-vs-declared stays scoreable in history.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: input_select.nursery_ground_truth
+      state: unknown
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_ground_truth
+    data:
+      option: unknown
+  mode: single
+- alias: Nursery Nap 8 — Stamp wake time
+  description: 'SHADOW MODE. Stamps input_datetime.nursery_last_woke the moment binary_sensor.nursery_nap
+    turns off — i.e. the moment we stop being sure she''s asleep. This fires for both an inferred wake
+    (state left asleep) AND a manual ''She''s up'' tap (override sets nap off), so one trigger covers
+    both. Distinct from the tile''s ''no one around for XXm'', which is time-since-adult-presence, not
+    sleep-end. Check-in flicker is harmless: a brief off->on stamp is overwritten by the real wake and
+    only displayed while she''s actually up.'
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_nap
+    from: 'on'
+    to: 'off'
+  conditions: []
+  actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.nursery_last_woke
+    data:
+      timestamp: '{{ as_timestamp(now()) }}'
+  mode: single
+- alias: Nursery Nap 9 — Sleep battery tick
+  description: 'SHADOW MODE. Time-delta battery tick. Each run applies rate × (minutes since last tick),
+    so it self-heals across restarts: on `homeassistant` start the first run applies the whole downtime
+    gap (capped 720 min) instead of losing it. Asleep = binary_sensor.nursery_nap OR input_boolean.nursery_external_sleep
+    (the latter credits naps taken outside the nursery). Charge = 100/nap_recharge %/min; drain = 100/wake_window
+    %/min. Clamped [-15, 115] for headroom: below 0 = overtired past due, above 100 = extra-rested oversleep.
+    Event-driven, not clock-driven → survives the 2-nap→1-nap shift (only wake_window changes).'
+  triggers:
+  - trigger: time_pattern
+    minutes: /1
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.nursery_sleep_battery
+    data:
+      value: '{{ next }}'
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.nursery_battery_last_tick
+    data:
+      timestamp: '{{ as_timestamp(now()) }}'
+  variables:
+    batt: '{{ states(''input_number.nursery_sleep_battery'') | float(0) }}'
+    lt: '{{ state_attr(''input_datetime.nursery_battery_last_tick'',''timestamp'') | float(0) }}'
+    elapsed: '{{ [[ ((as_timestamp(now()) - lt) / 60) if lt > 0 else 1, 0] | max, 720] | min }}'
+    recharge: '{{ [states(''input_number.nursery_nap_recharge'') | float(120), 1] | max }}'
+    window: '{{ [states(''input_number.nursery_wake_window'') | float(180), 1] | max }}'
+    asleep: '{{ is_state(''binary_sensor.nursery_nap'',''on'') or is_state(''input_boolean.nursery_external_sleep'',''on'')
+      }}'
+    rate: '{{ (100 / recharge) if asleep else (-100 / window) }}'
+    next: '{{ [[ batt + rate * elapsed, -15] | max, 115] | min | round(1) }}'
+  mode: single
+- alias: Nursery Nap 11 — Put-down recovery after restart
+  description: 'Restart safety-net for automation 2. A bare `presence off for 90s` trigger is ORPHANED
+    by an HA restart: on reboot presence is already off, so no fresh off-transition re-arms the clock.
+    This killed the 10:58 put-down on 2026-08-02 (HA restarted 11:00:25, ~5s before automation 2 was
+    due at 11:00:30). On boot, wait 60s for HomeKit/Z-Wave to report fresh states, then if door closed
+    + presence off + dark + state awake/tending/unknown, a put-down completed before the restart → settling.
+    Complements automation 6 (door OPEN at boot → awake).'
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  - condition: state
+    entity_id: input_select.nursery_state
+    state:
+    - awake
+    - tending
+    - unknown
+  - condition: state
+    entity_id: binary_sensor.nursery_door_open
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.nursery_presence_sensor
+    state: 'off'
+  - condition: or
+    conditions:
+    - condition: numeric_state
+      entity_id: sensor.nursery_presence_sensor_light_sensor_light_level
+      below: 30
+    - condition: numeric_state
+      entity_id: sensor.nursery_light_level_smoothed
+      below: 30
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.nursery_state
+    data:
+      option: settling
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.nursery_sleep_started
+    data:
+      timestamp: '{{ as_timestamp(now()) }}'
+  mode: single

@@ -1,0 +1,97 @@
+# Nursery Monitor — kiosk theme  ("Option A / Dark Cockpit")
+# Nursery_Monitor_Tablet_Plan.md + Nursery_Monitor_Layout_Research.md
+#
+# DESIGN PRINCIPLE (from operational-monitoring practice, not smart-home practice):
+#   DARK COCKPIT + EXCEPTION-BASED DISPLAY.
+#   Quiet when normal; impossible to ignore when something changes.
+#   Colour is RESERVED for exceptions. Normal = grey.
+#   Red = crying or blind. Amber = worth knowing.
+
+Nursery Monitor:
+  # ---- base surfaces: true black so brightness 0 reads as "off" ----
+  primary-background-color: "#000000"
+  secondary-background-color: "#000000"
+  card-background-color: "#0d0d11"
+  ha-card-background: "#0d0d11"
+  divider-color: "#1c1c22"
+
+  # ---- foreground: warm, low-blue, deliberately DIM for the normal case ----
+  primary-text-color: "#ded7cb"
+  secondary-text-color: "#8b857c"
+  text-primary-color: "#ded7cb"
+  disabled-text-color: "#4f4a44"
+  primary-color: "#b9926a"
+  accent-color: "#c98a5a"
+  state-icon-color: "#9c968b"
+  state-icon-active-color: "#c9c2b6"
+
+  # ---- semantic states: the ONLY places colour is allowed ----
+  error-color: "#e05252"
+  warning-color: "#d99a3c"
+  success-color: "#6fae7a"
+  info-color: "#7f9fc4"
+  state-binary_sensor-active-color: "#e05252"
+
+  # ---- card shape ----
+  ha-card-border-radius: "10px"
+  ha-card-border-width: "0"
+  ha-card-box-shadow: "none"
+
+  # ---- header/toolbar ----
+  app-header-background-color: "#000000"
+  app-header-text-color: "#ded7cb"
+
+  # =========================================================================
+  # TYPE — the STATUS LINE must be readable FROM THE DOORWAY (~3 m).
+  # It is the largest text on the panel by design: the whole answer to
+  # "is she OK?". Everything else may require walking closer.
+  #
+  # ⚠️ The status line is a mushroom-TEMPLATE-card, not a chip, because
+  # `chip-font-size` did NOT visibly apply here while
+  # `mush-card-primary-font-size` reliably does. Chips carry only the small
+  # always-on battery readout and the conditional exception markers.
+  # =========================================================================
+  mush-card-primary-font-size: "34px"
+  mush-card-primary-font-weight: "600"
+  mush-card-secondary-font-size: "17px"
+  mush-icon-size: "46px"
+
+  chip-height: "38px"
+  chip-font-size: "16px"
+  chip-icon-size: "21px"
+  chip-border-radius: "9px"
+  chip-spacing: "8px"
+  chip-background: "transparent"
+
+  # =========================================================================
+  # card-mod: strip HA's chrome AND the view gutters, so the camera runs
+  # edge-to-edge. Everything else on this dashboard is a fixed overlay, so
+  # the video is the only thing in normal flow and should own the glass.
+  #
+  # ⚠️ `--header-height: 0px` is REQUIRED. HA computes the view offset from it;
+  # hiding `.toolbar` alone pushes content above the viewport.
+  #
+  # ⚠️ `padding` is an EMPIRICAL trim tuned as a PAIR with the fixed overlays'
+  # `top:` values. Measured history:
+  #     30px top → paired with overlay `top: 76px` (old overlay layout)
+  #      0px top → top of the video clipped off-screen
+  #      8px top → current, paired with status `top: 60px` / alert `top: 70px`
+  # Side/bottom gutters are zeroed to maximise video width.
+  # Change one, re-check the others, ON THE DEVICE.
+  # =========================================================================
+  card-mod-theme: Nursery Monitor
+  card-mod-root-yaml: ""
+  card-mod-root: |
+    :host {
+      --header-height: 0px !important;
+    }
+    .header {
+      display: none !important;
+    }
+    hui-view-container#view {
+      padding: 8px 0 0 0 !important;
+    }
+    hui-sections-view {
+      --column-gap: 0px !important;
+      --row-gap: 0px !important;
+    }

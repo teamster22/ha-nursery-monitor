@@ -1,0 +1,1156 @@
+# ============================================================================
+# ha-nursery-monitor — tablet parent unit
+#
+# Turns a wall-mounted Fully Kiosk tablet into a baby-monitor parent unit that
+# wakes in under a second.
+#
+# The trick: DORMANT IS NOT SCREEN-OFF. Dormant = brightness 0 + volume 0 over
+# a STILL-PLAYING video element with a black overlay card on top. The stream
+# never stops, which is why the wake is instant instead of a 3-8 second
+# reconnect. Turning the screen off would suspend WebView media and make a cry
+# response visibly slower at exactly the moment it matters.
+#
+# ⚠️ Read DISCLAIMER.md first.
+# ============================================================================
+
+automation:
+- alias: Nursery Monitor — Mirror volume to tablet
+  description: 'Pushes input_number.nursery_monitor_volume (0-100 %) to the tablet''s actual device
+    volume via the Fully Kiosk media_player (which takes 0.0-1.0). WHY THIS EXISTS: the dashboard''s
+    Quieter/Mute/Louder buttons write the HELPER, and until this automation existed nothing carried
+    that to the hardware — so the on-screen controls moved a number and changed no sound. Mute = helper
+    0 = volume_level 0. Note Fully does NOT report volume back to HA, so the helper is what HA believes;
+    the tablet''s physical volume keys change the device directly and will drift from it (accepted —
+    Nursery_Monitor_Tablet_Plan.md §3.8). mode: restart so a rapid run of taps only applies the final
+    value.'
+  triggers:
+  - trigger: state
+    entity_id: input_number.nursery_monitor_volume
+  conditions: []
+  actions:
+  - action: media_player.volume_set
+    target:
+      entity_id: media_player.floating_devices_nursery_monitor_display
+    data:
+      volume_level: '{{ (states(''input_number.nursery_monitor_volume'') | float(60)) / 100 }}'
+  mode: restart
+- alias: Nursery Monitor — Auto-hide controls
+  description: "Option A (Dark Cockpit) is deliberately near-empty: the control bar is hidden until\
+    \ you tap the video, then hides itself again. Tapping the camera card turns input_boolean.nursery_monitor_controls_shown\
+    \ ON; this automation turns it back OFF after 12 seconds.\n\nTWO trigger paths, and the second one\
+    \ is not redundant:\n  1. 'shown' — a state trigger with for: 12s. Fast, handles the normal tap.\n\
+    \  2. 'watchdog' — a time_pattern every minute. REQUIRED because a `for:` state trigger only arms\
+    \ on a transition it actually OBSERVES. If the boolean is already ON when this automation is enabled,\
+    \ reloaded, or when HA restarts, path 1 never fires and the control bar is STUCK ON FOREVER — a\
+    \ second tap cannot rescue it either, because on -> on is not a state change. That exact wedge happened\
+    \ July 2026 after the automation was briefly disabled to capture a screenshot.\n\nThe shared 12s\
+    \ condition means the watchdog can never close the bar early."
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.nursery_monitor_controls_shown
+    to: 'on'
+    for:
+      seconds: 12
+    id: shown
+  - trigger: time_pattern
+    minutes: /1
+    id: watchdog
+  conditions:
+  - condition: state
+    entity_id: input_boolean.nursery_monitor_controls_shown
+    state: 'on'
+    for:
+      seconds: 12
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.nursery_monitor_controls_shown
+  mode: restart
+- alias: Nursery Monitor — Qualified cry
+  description: "THE CENTREPIECE. Frigate hears sustained crying -> wake the tablet, play the alert chime,\
+    \ hold the panel awake.\n\n=== HARD OFF SWITCH (I, 2026-08-02) ===\nThis automation is toggled\
+    \ directly by the 'Tablet Alert Automation' tile on the v3 Nursery view (automation.toggle).\n⚠️\
+    \ UNLIKE THE SNOOZE, TURNING IT OFF HAS NO EXPIRY. It stays off until someone switches it back on\
+    \ — which is precisely the 'forget and then miss a cry' failure the snooze machinery was built to\
+    \ prevent. The dashboard tile therefore turns RED and reads DISABLED rather than sitting quietly\
+    \ grey. If this proves forgettable in practice, add a periodic reminder rather than removing the\
+    \ switch.\n⚠️ `automation.turn_off` defaults to stop_actions: true, so toggling off mid-chime also\
+    \ aborts a run in progress. That is desirable here.\n\n=== TABLET SNOOZE ===\nGated by input_boolean.nursery_tablet_alerts_snoozed.\
+    \ Suppresses BOTH chime and wake, because a panel lighting up is an alert whether or not it makes\
+    \ noise. Written `not: [state 'on']` so an unknown helper degrades to ALERTING.\n\n=== DOOR SUPPRESSION\
+    \ + 90s GRACE ===\nNo alert while the nursery door is OPEN, and none for 90s after it closes.\n\n\
+    ⚠️ WHY THERE ARE TWO TRIGGERS — DO NOT DELETE 'grace_expired'. 'cry' is a `for:`-qualified state\
+    \ trigger, and those fire ONCE per off->on transition. If she starts crying 30s into the grace and\
+    \ keeps crying, 'cry' fires, the condition blocks it, and NOTHING EVER RE-EVALUATES — the alert\
+    \ is LOST ENTIRELY, not delayed.\n\n⚠️ WHY THE DOOR GATE IS A TEMPLATE, NOT `state: 'off' for: 90s`.\
+    \ The native form evaluates FALSE on `unavailable`/`unknown`, so one dead door-sensor battery would\
+    \ suppress every cry alert forever with no outward sign. Verified in the wild: this sensor really\
+    \ does flick to `unavailable`.\n\n=== ⚠️ CHIME URL MUST BE ABSOLUTE ===\nA relative '/local/...'\
+    \ path produced a 'file not found' toast on the tablet and NO error in the HA log. fully_kiosk cannot\
+    \ resolve it — Fully is a separate LAN device and HA's base_url is 127.0.0.1. Derived at runtime\
+    \ from the tablet's own reported page so it survives an IP change.\n\n=== ⚠️ VOLUME IS NOT TOUCHED\
+    \ — FOURTH ITERATION, DO NOT RE-LITIGATE ===\n  v1 forced a 50% floor, restoring from the volume\
+    \ HELPER.\n  v2 removed volume handling entirely.\n  v3 captured the real device volume, raised\
+    \ to a chime helper, then put it back.\n  v4 (this, I): 'only send the alert chime to the tablet,\
+    \ do not alter the currently set volume.' NO volume_set at all.\n⚠️ CONSEQUENCE, ACCEPTED: if the\
+    \ tablet volume is 0 — whether the user muted it or automation.nursery_monitor_mute_while_adult_in_nursery\
+    \ muted it — THE CRY CHIME IS SILENT. I has now chosen this twice. Do not reinstate a volume floor\
+    \ without asking.\ninput_number.nursery_chime_volume is now UNUSED (created only for v3). Left rather\
+    \ than deleted; remove after the bake-in if still unused.\n\nCooldown uses input_number.nursery_alert_cooldown_minutes\
+    \ (UI-tunable). mode: single so a second qualifying cry inside the run is dropped — which the cooldown\
+    \ would do anyway."
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_crying_sound
+    to: 'on'
+    for:
+      seconds: '{{ states(''input_number.nursery_cry_qualify_seconds'') | int(5) }}'
+    id: cry
+    note: Primary path. UI-tunable qualifier rejects a single blip.
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    to: 'off'
+    for:
+      seconds: 90
+    id: grace_expired
+    note: Grace backstop. Without this a cry beginning during the grace window is never re-evaluated
+      and the alert is lost.
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: input_boolean.nursery_tablet_alerts_snoozed
+      state: 'on'
+    note: TABLET SNOOZE GATE. not:[state 'on'] so an unknown helper degrades to ALERTING.
+  - condition: state
+    entity_id: binary_sensor.nursery_crying_sound
+    state: 'on'
+    note: Redundant for 'cry'; load-bearing for 'grace_expired'.
+  - condition: template
+    value_template: '{% set d = states.binary_sensor.nursery_door_open %}{% if d is none or d.state
+      in [''unavailable'',''unknown''] %}true{% elif d.state == ''on'' %}false{% else %}{{ (as_timestamp(now())
+      - as_timestamp(d.last_changed)) > 90 }}{% endif %}'
+    note: FAIL-SAFE door gate.
+  actions:
+  - variables:
+      chime_url: '{% set p = states(''sensor.floating_devices_nursery_monitor_display_current_page'')
+        | string %}{% set b = p | regex_findall_index(''^(https?://[^/]+)'', 0, ignorecase=True) if
+        p.startswith(''http'') else ''http://homeassistant.local:8123'' %}{{ b }}/local/nursery_monitor/nursery_alert_chime.mp3'
+    note: Only the chime URL. No volume variables — volume is deliberately untouched (v4).
+  - action: script.nursery_monitor_wake
+    note: Fast path or slow post-power-button recovery. Also restarts the inactivity timer.
+  - if:
+    - condition: state
+      entity_id: timer.nursery_monitor_alert_cooldown
+      state: idle
+    then:
+    - action: media_player.play_media
+      target:
+        entity_id: media_player.floating_devices_nursery_monitor_display
+      data:
+        media_content_id: '{{ chime_url }}'
+        media_content_type: music
+      note: Chime only. Plays at whatever volume is currently set — no raise, no restore.
+    - action: timer.start
+      target:
+        entity_id: timer.nursery_monitor_alert_cooldown
+      data:
+        duration: '{{ ((states(''input_number.nursery_alert_cooldown_minutes'') | float(3)) * 60) |
+          int }}'
+      note: Templated from the UI tuner.
+    note: Chime is cooldown-gated; the WAKE above is not — a repeat cry inside the cooldown should still
+      hold the panel awake, just silently.
+  mode: single
+  max_exceeded: silent
+- alias: Nursery Monitor — Sleep on idle
+  description: 'ACTIVE -> DORMANT after 5 minutes of no interaction. timer.nursery_monitor_inactivity
+    is (re)started by script.nursery_monitor_wake and by every dashboard interaction; when it finally
+    runs out, the panel goes dark.
+
+
+    The active-flag condition guards against a pointless run: if the panel is already dormant (hardware
+    power button got there first, or a cry woke it and it slept again in between), there is nothing
+    to do.
+
+
+    === SETTLING HOLD-OPEN (I, July 2026) ===
+
+    ''The tablet should not go to soft-standby automatically while the nursery is in settling.'' Settling
+    is the window just after the door closes when she is going down but is not yet asleep — precisely
+    when someone is most likely to be WATCHING the panel and least likely to be TOUCHING it. An inactivity
+    timer blanking the screen at that exact moment is backwards.
+
+
+    ⚠️ IT RESTARTS THE TIMER RATHER THAN JUST BLOCKING THE SLEEP — THIS IS THE LOAD-BEARING PART.
+
+    The obvious implementation is to add a condition ''state is not settling'' and let the run fail.
+    That would leave the panel awake FOREVER: the timer has already finished, nothing restarts it, and
+    no later event would ever put the panel back to sleep. Same failure class as a `for:`-qualified
+    trigger that cannot re-arm — the fourth instance of it on this project (see also automation.nursery_monitor_auto_hide_controls,
+    the 90s cry grace window, and _sleep_when_nursery_empty''s reload caveat).
+
+    Restarting the timer instead means the question is simply re-asked in another 5 minutes, and the
+    first expiry after settling ends puts the panel to sleep through the normal path. Self-healing,
+    no extra state, no new helper.
+
+
+    BOUNDED COST: settling is not open-ended — automation.nursery_nap_3_settling_asleep promotes settling
+    -> asleep after 8 minutes shut+quiet and re-checks on a 2-minute poll, so this holds the screen
+    awake for roughly one extra 5-minute cycle per settling episode. On a floating device that is a
+    real but small battery cost; automation.nursery_monitor_low_battery at 20% remains the backstop.
+
+
+    NOT extended to ''tending'': during tending the door is open and an adult is IN the room with her,
+    so a dark panel costs nothing. Only settling has the ''nobody is touching it but someone is watching''
+    property.
+
+
+    mode: single — a timer can only finish once per start.'
+  triggers:
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.nursery_monitor_inactivity
+    id: idle
+    note: 'The timer.finished EVENT is used rather than a state trigger on the timer entity: timer entities
+      pass through ''idle'' on cancel as well as on natural expiry, and only the event distinguishes
+      ''ran out'' from ''was cancelled''. script.nursery_monitor_sleep CANCELS this timer, so a state
+      trigger would re-fire on every sleep.'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.nursery_monitor_active
+    state: 'on'
+    note: Only act if the panel is actually awake.
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_select.nursery_state
+        state: settling
+      sequence:
+      - action: timer.start
+        target:
+          entity_id: timer.nursery_monitor_inactivity
+        note: Re-arm, do not sleep. DO NOT replace this branch with a blocking condition — see the description;
+          the panel would never sleep again.
+      alias: Settling -> hold the panel awake, re-ask in 5 min
+    default:
+    - action: script.nursery_monitor_sleep
+  mode: single
+- alias: Nursery Monitor — Follow hardware power button
+  description: 'Keeps HA''s state machine in step with the PHYSICAL power button, so pressing it converges
+    on exactly the same state as using the dashboard''s soft Sleep/Wake (I, July 2026).
+
+
+    WHY THIS IS NEEDED: Android reserves KEYCODE_POWER at the system level — no app, Fully included,
+    can intercept or remap it (§3.8). It cannot be prevented, so it must be FOLLOWED. Without this automation
+    a power press desynchronises everything: the screen is dark but input_boolean.nursery_monitor_active
+    still says ACTIVE, so the dashboard shows no black overlay, the inactivity timer keeps running,
+    the volume is still up, and the next cry finds the machine in a state it does not expect.
+
+
+    POWER OFF -> run script.nursery_monitor_sleep. That script sets volume 0, brightness 0, clears the
+    active flag and cancels the inactivity timer — i.e. the hardware press lands in the identical DORMANT
+    state as the soft button. It does not turn the screen off (it is already off) and does not need
+    to.
+
+
+    POWER ON -> run script.nursery_monitor_wake WITH force_recovery: true.
+
+    ⚠️ THE force_recovery FLAG IS LOAD-BEARING, DO NOT DROP IT. By the time this automation reacts,
+    the screen ALREADY reports on — so the wake script''s own was-the-screen-off check computes FALSE
+    and would take the fast path, skipping the page reload. But the WebView really was suspended by
+    the screen-off, so the stream may be frozen or silent. Result without the flag: a lit panel that
+    looks awake and shows a dead picture. That is the exact failure mode this whole feature exists to
+    prevent.
+
+
+    ⚠️ LOOP GUARD — the `script.nursery_monitor_wake is off` condition is NOT redundant. The wake script''s
+    second step is switch.turn_on on this very screen switch. When wake runs from a dormant-but-screen-off
+    state, that turns the switch on, which fires the power_on trigger below, which would call wake again.
+    Because wake is mode: restart, it would abort and restart itself — potentially indefinitely. Checking
+    that the script is not already running breaks the cycle. The active-flag check alone is NOT sufficient:
+    wake sets that flag LAST, so it is still ''off'' at the moment the switch flips.
+
+
+    mode: restart so a rapid off/on press sequence settles on the final intent rather than queueing
+    both.'
+  triggers:
+  - trigger: state
+    entity_id: switch.floating_devices_nursery_monitor_display_screen
+    to: 'off'
+    id: power_off
+    note: Only a hardware press produces this — HA never turns the screen off (dormant is brightness
+      0, not screen-off).
+  - trigger: state
+    entity_id: switch.floating_devices_nursery_monitor_display_screen
+    to: 'on'
+    id: power_on
+    note: Fires for a hardware press AND for the wake script's own switch.turn_on — hence the loop guard.
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: power_off
+      - condition: state
+        entity_id: input_boolean.nursery_monitor_active
+        state: 'on'
+      sequence:
+      - action: script.nursery_monitor_sleep
+      alias: Power off -> converge on DORMANT
+    - conditions:
+      - condition: trigger
+        id: power_on
+      - condition: state
+        entity_id: input_boolean.nursery_monitor_active
+        state: 'off'
+      - condition: state
+        entity_id: script.nursery_monitor_wake
+        state: 'off'
+      sequence:
+      - action: script.nursery_monitor_wake
+        data:
+          force_recovery: true
+      alias: Power on -> converge on ACTIVE, forcing stream recovery
+  mode: restart
+- alias: Nursery Monitor — Tablet offline
+  description: 'THE BEEP AN OEM MONITOR MAKES WHEN IT DIES. Fires when the Nursery Monitor tablet stops
+    reporting to HA for 5 minutes, and again when it comes back.
+
+
+    WHY THIS IS THE MOST IMPORTANT ALERT IN THE SET: a dead parent unit is indistinguishable from a
+    quiet nursery. Both are a dark, silent tablet. Someone can sit in the next room believing they are
+    being watched over by a device that has been off for two hours. The Eufy E10 beeps when it loses
+    its camera; this is that beep.
+
+
+    It also fires when the battery is let run flat on the couch — correct behaviour, not a bug. automation.nursery_monitor_low_battery
+    at 20% is what makes it PREDICTABLE rather than merely annoying (§3.7).
+
+
+    ⚠️ NO ANTI-SPAM BOOLEAN, deliberately — the plan (§7.3) specified one and it is not needed. A `for:`-qualified
+    state trigger fires ONCE per transition into the matching state; it cannot repeat while the tablet
+    stays offline. An extra input_boolean would be another piece of state to keep in sync, with a failure
+    mode of its own (stuck ''already alerted'' = suppressed alerts, the fail-silent trap again). If
+    the tablet genuinely flaps offline/online with each outage lasting >5 min, each of those IS a separate
+    event worth knowing about.
+
+
+    ⚠️ Known limitation: `for:` clocks reset on HA restart. If HA restarts while the tablet is offline,
+    the 5-minute wait starts over and the alert arrives ~5 min after HA is back. Acceptable — late is
+    fine, silent is not.
+
+
+    AUDIENCE: notify.parents per the temporary narrowing (§11.0). ⚠️ This one should arguably go
+    to notify.parents on revert — ''the monitor is dead'' is not I-only news, unlike a tablet
+    battery warning. Decide at the N7 exit review.
+
+
+    Watches the battery sensor because it always carries a value when the tablet is reachable, making
+    unavailable an unambiguous signal.'
+  triggers:
+  - trigger: state
+    entity_id: sensor.floating_devices_nursery_monitor_display_battery
+    to: unavailable
+    for:
+      minutes: 5
+    id: offline
+    note: 5 min tolerates Wi-Fi roaming across the Deco mesh without crying wolf.
+  - trigger: state
+    entity_id: sensor.floating_devices_nursery_monitor_display_battery
+    from: unavailable
+    id: recovered
+    note: No `for:` — recovery news should be immediate.
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: offline
+      sequence:
+      - action: notify.parents
+        data:
+          title: ⚠️ Nursery monitor is OFFLINE
+          message: The tablet has not reported for 5 minutes. The nursery is NOT being watched. Check
+            the tablet — battery, Wi-Fi, or Fully has crashed.
+          data:
+            tag: nursery-monitor-offline
+            group: nursery
+            channel: alarm_stream
+            ttl: 0
+            priority: high
+            push:
+              sound:
+                name: default
+                critical: 1
+                volume: 1
+        note: Critical/alarm_stream so it bypasses silent and DND. A monitor that has silently died
+          is exactly what critical alerts are for.
+      alias: Offline
+    - conditions:
+      - condition: trigger
+        id: recovered
+      sequence:
+      - action: notify.parents
+        data:
+          title: ✅ Nursery monitor is back
+          message: The tablet is reporting again. Battery {{ states('sensor.floating_devices_nursery_monitor_display_battery')
+            }}%{{ ', charging' if is_state('binary_sensor.floating_devices_nursery_monitor_display_plugged_in','on')
+            else ', on battery' }}.
+          data:
+            tag: nursery-monitor-offline
+            group: nursery
+        note: Same tag as the offline alert so it REPLACES it in the notification shade rather than
+          stacking — the tray then shows current truth, not history.
+      alias: Recovered
+  mode: queued
+  max: 5
+- alias: Nursery Monitor — Low battery
+  description: 'Warns at 20% on battery so the tablet never silently dies mid-float.
+
+
+    PURPOSE (§3.7): this is a FLOATING device — home base is the bedside, but it moves around the house,
+    and a live video decode 24/7 is a real drain (expect ~5-8h unplugged, to be measured in N7). Without
+    this warning the first sign of a flat battery is the OFFLINE alert, i.e. the monitor has ALREADY
+    stopped watching. This alert exists to turn that from a surprise into a chore.
+
+
+    The two alerts are designed as a pair: low-battery at 20% makes the offline alert PREDICTABLE rather
+    than annoying.
+
+
+    AUDIENCE: notify.parents — and unlike the offline alert, this one should STAY I-only after
+    the §11.0 revert. ''Go plug the tablet in'' is a chore for whoever maintains the system; it is not
+    news my wife needs at 2am.
+
+
+    Not critical priority, deliberately: 20% is roughly an hour of warning, which does not warrant bypassing
+    DND. The offline alert is the critical one.
+
+
+    numeric_state triggers fire once on CROSSING the threshold, so there is no repeat while it sits
+    below 20% — no anti-spam state needed. If it is unplugged, drains past 20%, is plugged in, and unplugged
+    again still below 20%, the second unplug re-arms via the second trigger.'
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.floating_devices_nursery_monitor_display_battery
+    below: 20
+    id: crossed
+    note: Fires once on crossing down through 20%.
+  - trigger: state
+    entity_id: binary_sensor.floating_devices_nursery_monitor_display_plugged_in
+    to: 'off'
+    id: unplugged
+    note: Catches unplugging when already below 20% — the numeric threshold was crossed while charging,
+      so 'crossed' never fires.
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.floating_devices_nursery_monitor_display_plugged_in
+    state: 'off'
+    note: Only warn when actually running down. Below 20% while charging is not a problem.
+  - condition: numeric_state
+    entity_id: sensor.floating_devices_nursery_monitor_display_battery
+    below: 20
+    note: Load-bearing for the 'unplugged' trigger, which fires at any charge level.
+  actions:
+  - action: notify.parents
+    data:
+      title: 🔋 Nursery monitor battery low
+      message: Tablet is at {{ states('sensor.floating_devices_nursery_monitor_display_battery') }}%
+        and unplugged. Plug it in before it drops off and stops watching the nursery.
+      data:
+        tag: nursery-monitor-battery
+        group: nursery
+  mode: single
+- alias: Nursery Monitor — View watchdog
+  description: 'Puts the tablet back on the nursery view if it drifts off it — another app in the foreground,
+    or Fully navigated somewhere else.
+
+
+    WHY: this device gets handed to babysitters and picked up by visitors. A tablet showing the Android
+    launcher, or a dashboard scrolled to some other view, is a monitor that has silently stopped monitoring.
+    Self-healing is cheaper than expecting anyone to notice.
+
+
+    ⚠️ THE ESCAPE HATCH IS switch.floating_devices_nursery_monitor_display_maintenance_mode. Without
+    it this automation actively fights you: 3 minutes into changing a Fully setting it yanks you back
+    to the dashboard, and it is genuinely infuriating to debug because the cause is invisible from the
+    tablet. TURN MAINTENANCE MODE ON BEFORE WORKING ON THE TABLET. It is on the Fully entity list and
+    can be toggled from HA.
+
+
+    ⚠️⚠️ BUT MAINTENANCE MODE LOCKS THE TABLET. Fully''s own docs describe it as ''lock device to maintenance
+    mode'' — it is NOT merely a mute for this automation. While it is ON nobody can use the panel at
+    all. So it is for REMOTE-ONLY work: turn it ON before remote edits, and turn it OFF again as the
+    LAST step before anyone tries to test on the device. Never leave it on ''pending confirmation''
+    — that locks the person out of the screen they are meant to check (learned 2026-08-20).
+
+
+    Re-arming this watchdog during a human test is safe: it only fires on DRIFT (wrong page or wrong
+    foreground app), not on ordinary use of the correct dashboard.
+
+
+    3-minute delay so ordinary brief excursions — checking a setting, glancing at another view — resolve
+    themselves without interference. Only genuine drift gets corrected.
+
+
+    ⚠️ The availability condition matters: when the tablet is offline, current_page and foreground_app
+    go unavailable/unknown, which makes the drift template TRUE. Without the guard this would fire pointless
+    service calls at a device that is not there, every three minutes, forever. Being offline is automation.nursery_monitor_tablet_offline''s
+    job, not this one''s.
+
+
+    Actions are ordered foreground-then-reload: bringing Fully forward is the lighter fix and is often
+    sufficient; the URL reload also rebuilds the stream and is the heavier hammer. Running both covers
+    either cause.
+
+
+    Matches on ''nursery-monitor'' rather than the full URL so the automation survives an IP change
+    or a switch to the Nabu Casa hostname.'
+  triggers:
+  - trigger: template
+    value_template: '{{ not is_state(''sensor.floating_devices_nursery_monitor_display_foreground_app'',''com.fullykiosk.emm'')
+      or ''nursery-monitor'' not in (states(''sensor.floating_devices_nursery_monitor_display_current_page'')
+      | string) }}'
+    for:
+      minutes: 3
+    id: drifted
+    note: Template trigger because the condition spans two entities and needs a substring match — no
+      native trigger expresses that.
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.floating_devices_nursery_monitor_display_foreground_app
+      state:
+      - unavailable
+      - unknown
+    note: Do not chase a tablet that is offline — that is the offline alert's job.
+  - condition: state
+    entity_id: switch.floating_devices_nursery_monitor_display_maintenance_mode
+    state: 'off'
+    note: ESCAPE HATCH — turn maintenance mode ON before REMOTE work on the tablet. It also LOCKS the
+      device, so turn it OFF before any hands-on test.
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.floating_devices_nursery_monitor_display_bring_to_foreground
+    note: 'Lighter fix: another app is in front but Fully is still on the right page.'
+  - delay:
+      seconds: 3
+  - action: button.press
+    target:
+      entity_id: button.floating_devices_nursery_monitor_display_load_start_url
+    note: 'Heavier fix: Fully is foregrounded but on the wrong page. Also rebuilds the stream.'
+  mode: single
+  max_exceeded: silent
+- alias: Nursery Monitor — Sleep when nursery empty
+  description: 'Sends the tablet to DORMANT when the nursery is empty with the door open and she is
+    up — i.e. she has been taken out of the room and there is nothing left to monitor (I, July 2026).
+
+
+    WHAT IT ADDS OVER THE INACTIVITY TIMER: `automation.nursery_monitor_sleep_on_idle` already darkens
+    the panel after 5 minutes, so this is not a new capability — it is a FASTER, EVIDENCE-BASED path
+    to the same place. Two minutes of a demonstrably empty room beats five minutes of nobody-touched-it.
+    **That also makes this automation low-stakes: if it never fires, the 5-minute timer still gets there.**
+    Do not add complexity to make it more reliable; the fallback is already correct.
+
+
+    === ⚠️ THE POLARITY HERE IS THE OPPOSITE OF THE CRY ALERT''S — THIS IS THE IMPORTANT PART ===
+
+    Every occupancy check uses `is_state(x,''off'')`, so an `unavailable`/`unknown` sensor evaluates
+    FALSE and the panel does NOT sleep.
+
+    Compare automation.nursery_monitor_qualified_cry, whose door gate is deliberately written as `not:
+    [state ''on'']` so that an unavailable sensor still ALERTS.
+
+    These look contradictory and are not. The rule is not ''always use is_state'' or ''always use not''
+    — **the rule is FAIL TOWARD THE MONITOR WORKING.** There, a dead sensor must not silence an alarm.
+    Here, a dead sensor must not blank the screen. Anyone editing either automation must work out which
+    direction ''safe'' points for that specific check, not copy the pattern across.
+
+
+    === WHY THREE OCCUPANCY SENSORS ===
+
+    Redundant on purpose, and redundancy here is CONSERVATIVE: every additional ''must be off'' makes
+    sleeping HARDER, never easier. A single stuck-on sensor merely means this automation stops firing
+    and the 5-minute timer takes over — a graceful degradation. A single stuck-OFF sensor cannot blank
+    the panel on its own, because the others still have to agree.
+
+
+    === WHY `state == awake` IS LOAD-BEARING ===
+
+    It excludes ''tending'' (an adult IS in the room — door open, someone present) and ''settling''/''asleep''
+    (she is down and must be watched). Nap 4 only reaches ''awake'' after the door has been open 2 min
+    WITH the room lit, or 15 min regardless — so ''awake'' already encodes ''this is a real pickup,
+    not a 4am bottle''. Reusing that judgement is better than re-deriving it here.
+
+
+    SAFETY ARGUMENT FOR WHY GOING DARK HERE IS ACCEPTABLE EVEN IF THE ROOM IS NOT TRULY EMPTY: cry alerts
+    are ALREADY suppressed while the door is open (§7.35), so a dormant panel adds no new blind spot
+    during exactly that window. When the door closes, the 90s grace runs, alerts re-arm, and the next
+    qualified cry wakes the panel.
+
+
+    Known limitation, accepted: a template trigger fires on a false->true transition, so if this automation
+    is reloaded while the conditions are already true it will not fire until they cycle. The inactivity
+    timer covers that gap.'
+  triggers:
+  - trigger: template
+    value_template: '{{ is_state(''input_select.nursery_state'',''awake'') and is_state(''binary_sensor.nursery_door_open'',''on'')
+      and is_state(''binary_sensor.nursery_all_occupancy'',''off'') and is_state(''binary_sensor.nursery_person_occupancy'',''off'')
+      and is_state(''binary_sensor.nursery_baby_occupancy'',''off'') and is_state(''binary_sensor.nursery_presence_sensor'',''off'')
+      and is_state(''input_boolean.nursery_monitor_active'',''on'') }}'
+    for:
+      minutes: 2
+    id: empty
+    note: 2 min sustained. Every clause uses is_state(...,'off') so an unavailable sensor blocks the
+      sleep rather than causing it — see the polarity note in the description.
+  conditions:
+  - condition: state
+    entity_id: input_boolean.nursery_monitor_active
+    state: 'on'
+    note: Re-checked at run time; the panel may have slept on its own during the 2-minute window.
+  - condition: state
+    entity_id: binary_sensor.nursery_crying_sound
+    state: 'off'
+    note: LAST-DITCH GUARD. If Frigate can hear her crying then the room is manifestly not empty, whatever
+      the occupancy sensors claim. Never darken the panel mid-cry.
+  actions:
+  - action: script.nursery_monitor_sleep
+  mode: single
+- alias: Nursery Monitor — Mirror brightness to tablet
+  description: "Pushes input_number.nursery_monitor_brightness to the tablet's actual screen brightness.\
+    \ Exact sibling of automation.nursery_monitor_mirror_volume_to_tablet, and it exists for the same\
+    \ architectural reason: the UI writes a HELPER, and this carries the helper to the hardware.\n\n\
+    === WHY THIS WAS ADDED July 2026: THE BRIGHTNESS BUTTONS DID NOT WORK ===\nArt: 'I don't think\
+    \ the brightness soft controls on the tablet are working.' They were half-working, in a way that\
+    \ felt completely dead.\n\nThe old scripts did a READ-MODIFY-WRITE directly against the Fully number\
+    \ entity:\n    value: {{ [ (states('number...screen_brightness') | int(128)) - 30, 0 ] | max }}\n\
+    Two failures compounded:\n  1. STALE READ. That entity round-trips in ~20-30 SECONDS. Tap Dimmer\
+    \ twice quickly and the second run reads the SAME stale brightness and computes the SAME target,\
+    \ so two taps move the screen 30, not 60.\n  2. DROPPED RUNS. mode: single plus a service call that\
+    \ blocks on an HTTP round-trip to the tablet meant every tap inside that window was discarded with\
+    \ 'Already running' in the log. The logbook showed 255 -> 225: ONE step, from several presses.\n\
+    \nFIX: decouple the UI from the slow device write, exactly as the volume control already did.\n\
+    \  - The buttons now step input_number.nursery_monitor_brightness, which is instantaneous and always\
+    \ reports its true value, so read-modify-write is reliable.\n  - This automation performs the single\
+    \ slow write to the tablet.\n  - mode: restart so a rapid burst of taps collapses into ONE device\
+    \ write of the FINAL value instead of queueing five 20-second writes.\n\n⚠️ DO NOT 'SIMPLIFY' THE\
+    \ BUTTONS BACK TO WRITING number.set_value DIRECTLY. It looks tidier and reintroduces both bugs.\
+    \ The general rule this project keeps re-learning: NEVER read-modify-write against a laggy entity\
+    \ — keep intent in a helper and mirror the helper outward.\n\nThe helper is the source of truth\
+    \ for INTENT; the number entity is the device's report of REALITY. They are allowed to differ briefly\
+    \ while a write settles."
+  triggers:
+  - trigger: state
+    entity_id: input_number.nursery_monitor_brightness
+    id: changed
+    note: Any change, including set_value from the wake/sleep scripts.
+  conditions: []
+  actions:
+  - action: number.set_value
+    target:
+      entity_id: number.floating_devices_nursery_monitor_display_screen_brightness
+    data:
+      value: '{{ states(''input_number.nursery_monitor_brightness'') | float(128) | round(0) }}'
+  mode: restart
+- alias: Nursery Monitor — Mute while adult in nursery
+  description: "Immediately STOPS any playing chime and mutes the tablet's live nursery audio the moment\
+    \ an adult is in the room, and restores the user's volume when they leave.\n\nArt's principle: 'there\
+    \ should not be a device squawking the audio of the nursery if an adult is already present soothing\
+    \ the crying child.' Someone standing over the crib does not need that same crib relayed through\
+    \ a speaker in the next room.\n\n=== ⚠️ THREE MUTE TRIGGERS, NOT ONE (I, 2026-08-02) ===\n'When\
+    \ the nursery presence detector detects an adult in the room OR if the door is opened, the tablet\
+    \ should IMMEDIATELY stop chiming and mute.'\n  • binary_sensor.nursery_adult_present  — the composed\
+    \ signal (tending OR door OR presence+person)\n  • binary_sensor.nursery_door_open      — DIRECT,\
+    \ so the door alone fires it\n  • binary_sensor.nursery_presence_sensor — DIRECT, so presence alone\
+    \ fires it\nThe last two are deliberately NOT routed through the composite: that sensor requires\
+    \ presence AND person-occupancy together, so presence alone would not have muted. I asked for\
+    \ either signal on its own, so both are wired directly. Redundant firing is harmless — muting twice\
+    \ is a no-op.\n\n=== ⚠️ media_stop IS THE 'STOP CHIMING' PART — VOLUME 0 ALONE IS NOT ENOUGH ===\n\
+    Setting volume to 0 silences output but leaves the ~13s chime PLAYING; it would resume audibly if\
+    \ anything restored volume mid-clip. media_player.media_stop actually ends playback.\nVerified before\
+    \ use: the Fully media_player reports supported_features 135684 = BROWSE_MEDIA(131072) + STOP(4096)\
+    \ + PLAY_MEDIA(512) + VOLUME_SET(4). STOP is genuinely supported, not assumed.\nStop runs BEFORE\
+    \ the mute so playback ends first and there is no window where a restore could un-silence it.\n\n\
+    === ⚠️ THE VOLUME HELPER IS NEVER TOUCHED ===\nThis writes the media_player volume DIRECTLY and\
+    \ leaves input_number.nursery_monitor_volume alone. The helper records what the USER wants; the\
+    \ device volume is a temporary override. Restore reads back FROM the helper.\nDO NOT 'simplify'\
+    \ by setting the helper to 0 — that destroys the user's level and starts a fight with automation.nursery_monitor_mirror_volume_to_tablet.\n\
+    \n=== INTERACTION WITH THE CRY CHIME (changed 2026-08-02) ===\nautomation.nursery_monitor_qualified_cry\
+    \ no longer touches volume at all (v4). So this automation is now the ONLY thing muting the tablet,\
+    \ and there is no longer a restore-race between the two — the 15s window that previously existed\
+    \ is gone.\n⚠️ CONSEQUENCE: while this mute is active the tablet volume is 0, and because the cry\
+    \ automation does not raise volume, A CRY CHIME DURING AN ACTIVE MUTE IS SILENT. That is the intended\
+    \ behaviour (an adult is in the room) but it is worth knowing when reading traces.\n\n=== FAIL DIRECTION\
+    \ ===\nAll three triggers fire on a transition INTO the detected state, and the restore only happens\
+    \ when the composite goes off. Unavailable sensors do not fire, so a sensor outage leaves audio\
+    \ WORKING rather than silently muting a baby monitor — the standing rule here is FAIL TOWARD THE\
+    \ MONITOR WORKING.\n\nmode: restart so someone stepping through the doorway settles on the final\
+    \ state rather than queueing mute/unmute pairs."
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.nursery_adult_present
+    from: 'off'
+    to: 'on'
+    id: mute_now
+    note: 'Composed signal: tending OR door OR presence+person.'
+  - trigger: state
+    entity_id: binary_sensor.nursery_door_open
+    to: 'on'
+    id: mute_now
+    note: DIRECT — door opening alone must mute, without waiting on the composite.
+  - trigger: state
+    entity_id: binary_sensor.nursery_presence_sensor
+    to: 'on'
+    id: mute_now
+    note: DIRECT — presence alone must mute; the composite requires presence AND person together.
+  - trigger: state
+    entity_id: binary_sensor.nursery_adult_present
+    from: 'on'
+    to: 'off'
+    id: restore
+    note: Only the composite clears the mute — conservative on the way back.
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: mute_now
+      sequence:
+      - action: media_player.media_stop
+        target:
+          entity_id: media_player.floating_devices_nursery_monitor_display
+        note: STOP first — ends the chime outright. Volume 0 alone would leave it playing silently.
+      - action: media_player.volume_set
+        target:
+          entity_id: media_player.floating_devices_nursery_monitor_display
+        data:
+          volume_level: 0
+        note: Device only. The helper keeps the user's chosen level for restore.
+      alias: Adult present / door open -> stop chime + mute relay
+    - conditions:
+      - condition: trigger
+        id: restore
+      sequence:
+      - action: media_player.volume_set
+        target:
+          entity_id: media_player.floating_devices_nursery_monitor_display
+        data:
+          volume_level: '{{ (states(''input_number.nursery_monitor_volume'') | float(60)) / 100 }}'
+        note: Restore FROM the helper, so the user's setting is recovered exactly.
+      alias: Adult left -> restore the user's volume
+  mode: restart
+# ============================================================================
+# ha-nursery-monitor — scripts
+#
+# The wake/sleep transitions live here (one place, called by automations and
+# dashboard buttons alike) plus the brightness/volume steppers.
+#
+# ⚠️ The brightness steppers write a HELPER, not the tablet. The Fully Kiosk
+# number entity round-trips in 20-30 seconds, so reading it, adding 30, and
+# writing it back means two fast taps both read the same stale value and move
+# the screen 30 instead of 60. The helper is instant and always truthful; one
+# automation mirrors it to the hardware. Do not "simplify" this back.
+# ============================================================================
+
+script:
+  nursery_monitor_brightness_up:
+    alias: Nursery Monitor — Brightness up
+    icon: mdi:brightness-7
+    mode: queued
+    max: 10
+    description: 'Steps the tablet''s brightness UP by 30 (Fully scale 0-255), clamped at 255. Sibling
+      of script.nursery_monitor_brightness_down.
+
+
+      ⚠️ REWRITTEN July 2026 — IT WRITES THE HELPER, NOT THE DEVICE. Do not ''simplify'' it back to
+      number.set_value on the Fully entity.
+
+
+      The old version read the Fully number entity, added 30, and wrote it back. That entity round-trips
+      in ~20-30 SECONDS, so a second tap inside that window read the SAME stale value and computed the
+      SAME target — two presses moved the screen 30, not 60 — and mode: single dropped the extra taps
+      with ''Already running''.
+
+
+      Now it steps input_number.nursery_monitor_brightness (instant, always truthful) and automation.nursery_monitor_mirror_brightness_to_tablet
+      performs the single slow write to the hardware.
+
+
+      WHY A SCRIPT AT ALL: a dashboard button can only call a service with fixed data; it cannot compute
+      ''current + 30''. The stepping arithmetic has to live somewhere, and a script keeps it in one
+      place for both the dashboard and any automation that wants it.
+
+
+      mode: queued (max 10) so a rapid burst of presses each apply in order; each run is now a sub-millisecond
+      helper write, so the queue drains instantly.'
+    sequence:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.nursery_monitor_brightness
+      data:
+        value: '{{ [ (states(''input_number.nursery_monitor_brightness'') | float(128)) + 30, 255 ]
+          | min }}'
+      note: Reads the HELPER, not the device — that is the whole fix.
+  nursery_monitor_brightness_down:
+    alias: Nursery Monitor — Brightness down
+    icon: mdi:brightness-4
+    mode: queued
+    max: 10
+    description: 'Steps the tablet''s brightness DOWN by 30 (Fully scale 0-255), clamped at 0.
+
+
+      ⚠️ REWRITTEN July 2026 — IT WRITES THE HELPER, NOT THE DEVICE. Do not ''simplify'' it back to
+      number.set_value on the Fully entity; that is what was broken.
+
+
+      The old version read the Fully number entity, subtracted 30, and wrote it back. That entity round-trips
+      in ~20-30 SECONDS, so a second tap inside that window read the SAME stale value and computed the
+      SAME target: two presses moved the screen 30, not 60. Compounding it, mode: single plus a blocking
+      HTTP write meant extra taps were dropped outright with ''Already running''. The logbook showed
+      a single 255 -> 225 step from several presses. The control felt dead because it very nearly was.
+
+
+      Now it steps input_number.nursery_monitor_brightness — instant, always truthful, so the arithmetic
+      is reliable — and automation.nursery_monitor_mirror_brightness_to_tablet does the one slow write
+      to the hardware (mode: restart, so a burst of taps collapses to a single write of the final value).
+
+
+      mode: queued (max 10) so a rapid burst of presses each apply in order rather than being discarded;
+      each run is now a sub-millisecond helper write, so the queue drains instantly.
+
+
+      Note 0 is the DORMANT brightness in the §3 state machine: holding this down is the manual equivalent
+      of the Sleep button, minus the state-flag change.'
+    sequence:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.nursery_monitor_brightness
+      data:
+        value: '{{ [ (states(''input_number.nursery_monitor_brightness'') | float(128)) - 30, 0 ] |
+          max }}'
+      note: Reads the HELPER, not the device — that is the whole fix.
+  nursery_monitor_wake:
+    alias: Nursery Monitor — Wake
+    icon: mdi:tablet-dashboard
+    description: 'DORMANT -> ACTIVE. The single place the wake transition lives; automations and dashboard
+      buttons call this rather than duplicating the steps.
+
+
+      ⚠️ DORMANT IS *NOT* SCREEN-OFF (plan §3.1). Dormant = brightness 0 + volume 0 over a STILL-PLAYING
+      video element, black overlay on top. The stream never stops, which is what makes the normal wake
+      sub-second.
+
+
+      === TWO WAKE PATHS — FAST AND SLOW ===
+
+      Waking after a HARDWARE POWER BUTTON screen-off must converge on exactly the same end state as
+      the soft Sleep button. It may take longer; it may not end up somewhere different.
+
+
+      FAST PATH (normal dormant, screen already on): the last four steps only. Sub-second.
+
+
+      SLOW PATH (screen genuinely off, OR force_recovery: true): Android SUSPENDS the WebView''s media
+      when the screen sleeps — not merely hides it — and on some resumes the stream does not recover
+      by itself. Setting brightness and volume blindly would produce a lit screen showing a frozen or
+      silent feed: it LOOKS awake and is not. So the slow path waits for Fully to report the screen
+      on (~1-3s; the service call returns immediately), settles, presses ''load start URL'' to rebuild
+      the page and re-establish the stream, then waits for that reload before touching brightness/volume.
+      ~8-10s, paid only when needed.
+
+
+      ⚠️ force_recovery EXISTS BECAUSE OF A RACE. If the USER presses power to wake, the screen already
+      reports ON by the time automation.nursery_monitor_follow_hardware_power_button reacts, so this
+      script''s own check computes FALSE and takes the fast path, leaving a suspended stream behind
+      a lit screen. That automation therefore passes force_recovery: true.
+
+
+      ⚠️ The variables step MUST be first. Once switch.turn_on runs, the evidence of which path was
+      needed is gone.
+
+
+      === BRIGHTNESS GOES THROUGH THE HELPER, NOT THE DEVICE ===
+
+      Sets input_number.nursery_monitor_brightness; automation.nursery_monitor_mirror_brightness_to_tablet
+      does the device write. Do NOT restore a direct number.set_value — the Fully number entity round-trips
+      in ~20-30s, and having two writers race it caused stale reads. Helper = intent, device = reality.
+
+
+      === VOLUME GUARD NOW USES binary_sensor.nursery_adult_present (changed 2026-08-02) ===
+
+      Previously this checked binary_sensor.nursery_presence_sensor alone. It now uses the composed
+      adult-presence sensor (nursery_state == ''tending'' OR door open OR presence+person together),
+      which covers the SAME acoustic-feedback case from §3.7 — tablet carried into the nursery, speaker
+      feeds the camera mic, Frigate re-triggers, self-sustaining loop — AND I''s broader principle
+      that the relay should not squawk while an adult is in there soothing her.
+
+      One signal, both purposes, and it stays in step with automation.nursery_monitor_mute_while_adult_in_nursery
+      instead of drifting from it.
+
+      ⚠️ The sensor evaluates FALSE when its inputs are unavailable, so a sensor outage wakes with audio
+      WORKING rather than silently muted.
+
+
+      === TWO DELIBERATE DEVIATIONS FROM THE LINTER ===
+
+      1. `wait_template` not `wait_for_trigger`: the latter waits for a CHANGE, the former passes immediately
+      if already true. If the screen finishes lighting before execution reaches that step, wait_for_trigger
+      would block the full 15s timeout on EVERY slow wake.
+
+      2. A template condition on `needs_recovery` — a script variable; no native condition can express
+      it.
+
+      Both will be re-flagged on any future edit. They are intentional.
+
+
+      Volume helper is 0-100; media_player.volume_set takes 0.0-1.0, hence /100.'
+    fields:
+      force_recovery:
+        name: Force stream recovery
+        description: Take the slow path (reload the page, rebuild the stream) even if the screen already
+          reports on. Set true when the WebView may have been suspended — e.g. the user woke the panel
+          with the hardware power button before HA saw it.
+        required: false
+        default: false
+        selector:
+          boolean: null
+    sequence:
+    - variables:
+        needs_recovery: '{{ (force_recovery | default(false)) or not is_state(''switch.floating_devices_nursery_monitor_display_screen'',''on'')
+          }}'
+      note: MUST be first — switch.turn_on below destroys the evidence of which path we need.
+    - action: switch.turn_on
+      target:
+        entity_id: switch.floating_devices_nursery_monitor_display_screen
+      note: No-op in the normal dormant case; the real wake after a hardware power press.
+    - if:
+      - condition: template
+        value_template: '{{ needs_recovery }}'
+      then:
+      - wait_template: '{{ is_state(''switch.floating_devices_nursery_monitor_display_screen'',''on'')
+          }}'
+        timeout:
+          seconds: 15
+        continue_on_timeout: true
+        note: continue_on_timeout so a stuck report still lets the rest run — degraded beats nothing
+          on a baby monitor.
+      - delay:
+          seconds: 2
+        note: Settle. Fully reports the screen on slightly before the WebView can be driven.
+      - action: button.press
+        target:
+          entity_id: button.floating_devices_nursery_monitor_display_load_start_url
+        note: Rebuilds the page and re-establishes the suspended stream.
+      - delay:
+          seconds: 6
+        note: Let the reload complete so brightness/volume land on a live page.
+      note: SLOW PATH — skipped entirely in the normal dormant case.
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.nursery_monitor_brightness
+      data:
+        value: '{{ (states(''input_number.nursery_monitor_brightness_night'') if is_state(''input_boolean.nighttime'',''on'')
+          else states(''input_number.nursery_monitor_brightness_day'')) | float(200) | round(0) }}'
+      note: Writes the HELPER; the mirror automation does the device write. Day/night split so a 3am
+        wake is not blinding.
+    - action: media_player.volume_set
+      target:
+        entity_id: media_player.floating_devices_nursery_monitor_display
+      data:
+        volume_level: '{{ 0 if is_state(''binary_sensor.nursery_adult_present'',''on'') else ((states(''input_number.nursery_monitor_volume'')
+          | float(60)) / 100) }}'
+      note: 'Adult-present guard: 0 while someone is in the nursery, else the user''s helper value.'
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.nursery_monitor_active
+      note: Drops the full-screen black overlay on the dashboard.
+    - action: timer.start
+      target:
+        entity_id: timer.nursery_monitor_inactivity
+      note: 5 min. Restarting a running timer is the intended 'keep awake' behaviour.
+    mode: restart
+  nursery_monitor_sleep:
+    alias: Nursery Monitor — Sleep
+    icon: mdi:tablet
+    description: "ACTIVE -> DORMANT. The single place the sleep transition lives.\n\n⚠️ THIS SCRIPT\
+      \ DELIBERATELY DOES *NOT* TURN THE SCREEN OFF. Do not 'fix' that by adding switch.turn_off. Dormant\
+      \ is brightness 0 + volume 0 over a STILL-PLAYING video element with a black overlay card on top\
+      \ (plan §3.1). Turning the screen off would:\n  1. suspend media playback, so the stream has to\
+      \ be re-established on wake — 3-8s instead of sub-second, which is the difference between this\
+      \ and an OEM monitor;\n  2. risk Android resuming audio uncontrolled on wake;\n  3. make a cry\
+      \ event's response visibly slower at exactly the moment it matters.\nThe cost is that the panel\
+      \ may faintly glow at brightness 0 (Android brightness 0 is often 'dimmest', not off) — the black\
+      \ overlay covers that. §3.3 says revisit true screen-off ONLY if it visibly glows on this unit.\n\
+      \n=== BRIGHTNESS GOES THROUGH THE HELPER, NOT THE DEVICE (changed July 2026) ===\nSets input_number.nursery_monitor_brightness\
+      \ to 0; automation.nursery_monitor_mirror_brightness_to_tablet performs the device write. Do NOT\
+      \ restore a direct number.set_value here — the Fully number entity round-trips in ~20-30s, and\
+      \ having both this script and the dashboard's Dimmer/Brighter buttons write it directly made the\
+      \ two paths race and read stale values from each other. One helper, one writer.\n\nVolume goes\
+      \ to 0 before brightness so audio stops the instant the panel is dismissed, rather than lingering\
+      \ while the backlight ramps.\n\nThe inactivity timer is cancelled rather than left running: a\
+      \ stale timer would fire timer.finished later and re-run this script pointlessly, and could race\
+      \ a legitimate wake in between."
+    sequence:
+    - action: media_player.volume_set
+      target:
+        entity_id: media_player.floating_devices_nursery_monitor_display
+      data:
+        volume_level: 0
+      note: Audio ceases while dormant — desired behaviour per §3.1, matching the Eufy E10.
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.nursery_monitor_brightness
+      data:
+        value: 0
+      note: Writes the HELPER; the mirror automation does the device write. The dashboard's black overlay
+        covers any residual glow.
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.nursery_monitor_active
+      note: Raises the full-screen black overlay. MUST stay tappable — with motion wake dropped, touch
+        is the only manual way back in (§3.2).
+    - action: timer.cancel
+      target:
+        entity_id: timer.nursery_monitor_inactivity
+      note: Prevents a stale timer.finished firing later and racing a legitimate wake.
+    mode: restart
+  nursery_monitor_find_tablet:
+    alias: Nursery Monitor — Find tablet (loud alert)
+    icon: mdi:cellphone-sound
+    mode: single
+    max_exceeded: silent
+    description: 'FIND-MY-TABLET. Wakes the panel and plays the alert chime ONCE at FULL VOLUME (~15s),
+      then restores the normal listening volume. For locating a floating device that has wandered into
+      a sofa.
+
+
+      ⚠️ 15s, NOT 45s — shortened July 2026 after I tested it: ''way too long. I can retrigger it
+      if necessary to find it.'' The original three-pass loop was built on the assumption that longer
+      = easier to locate; in practice one 13.14s chime is enough to get a bearing, and an over-long
+      alarm you cannot stop is worse than one you re-tap. **If you lengthen this, add a way to CANCEL
+      it, not just more repeats.**
+
+
+      Wakes first (via script.nursery_monitor_wake) rather than just playing audio, so the screen lights
+      too — a lit screen is often what actually finds it in a dim room, and the wake also recovers a
+      tablet sitting in hardware-power-button standby with its WebView suspended.
+
+
+      ⚠️ VOLUME 1.0 DELIBERATELY IGNORES input_number.nursery_monitor_volume. The whole point is to
+      be findable; a device muted to 10% cannot be found by ear. The listening volume is restored at
+      the end.
+
+
+      ⚠️ IT ALSO DELIBERATELY IGNORES THE ACOUSTIC-FEEDBACK GUARD (§3.7) that script.nursery_monitor_wake
+      applies — wake sets volume 0 if the tablet is in the nursery, and this script then overrides it
+      to 1.0. Intentional: if the tablet IS in the nursery you want to hear it and will immediately
+      find it. Residual risk is the speaker feeding the camera mic and tripping Frigate; the chime is
+      a rising bell and does not resemble YAMNet''s ''crying'' class, so this is low — but if a false
+      cry alert ever follows a find-tablet, that is the mechanism.
+
+
+      NOT cooldown-gated, and does not start the alert cooldown timer — doing so would suppress a genuine
+      cry alert for 3 minutes just because someone was hunting for the tablet. Finding the device must
+      never cost you a real alarm.
+
+
+      The 15s delay before restoring volume is load-bearing: play_media returns immediately, so without
+      it the volume would drop back to the listening level partway through the chime.
+
+
+      chime_url is derived from the tablet''s own reported page because fully_kiosk needs an ABSOLUTE
+      url (it is a separate LAN device; HA''s base_url is 127.0.0.1 and useless to it). A relative /local/
+      path produces a ''file not found'' toast on the tablet and NO error in the HA log.
+
+
+      mode: single + max_exceeded: silent so mashing the dashboard button cannot stack overlapping chimes.'
+    sequence:
+    - variables:
+        chime_url: '{% set p = states(''sensor.floating_devices_nursery_monitor_display_current_page'')
+          | string %}{% set b = p | regex_findall_index(''^(https?://[^/]+)'', 0, ignorecase=True) if
+          p.startswith(''http'') else ''http://homeassistant.local:8123'' %}{{ b }}/local/nursery_monitor/nursery_alert_chime.mp3'
+        listen_vol: '{{ (states(''input_number.nursery_monitor_volume'') | float(60)) / 100 }}'
+    - action: script.nursery_monitor_wake
+      note: Lights the screen and rebuilds the stream if it was in hardware standby.
+    - action: media_player.volume_set
+      target:
+        entity_id: media_player.floating_devices_nursery_monitor_display
+      data:
+        volume_level: 1
+      note: Full volume — overrides both the listening level and wake's in-nursery guard. See description.
+    - action: media_player.play_media
+      target:
+        entity_id: media_player.floating_devices_nursery_monitor_display
+      data:
+        media_content_id: '{{ chime_url }}'
+        media_content_type: music
+      note: One pass. I re-taps if he needs another.
+    - delay:
+        seconds: 15
+      note: Covers the 13.14s chime. play_media returns immediately, so without this the volume would
+        drop mid-chime.
+    - action: media_player.volume_set
+      target:
+        entity_id: media_player.floating_devices_nursery_monitor_display
+      data:
+        volume_level: '{{ listen_vol }}'
+      note: Restore the user's listening level.
+  nursery_monitor_volume_step:
+    alias: Nursery Monitor — Volume step
+    description: 'Adjusts input_number.nursery_monitor_volume by one step, or mutes it.
+
+
+      WHY A SCRIPT AND NOT A DASHBOARD tap_action: a Lovelace tap_action''s `data:` is STATIC config
+      — Jinja in it is never rendered, it is sent as a literal string and fails float validation with
+      an error toast on the tablet. Scripts DO render templates, so the arithmetic must live here. The
+      card passes a static direction and no numbers.
+
+
+      WHY NOT input_number.increment/decrement: Spook overrides both and reads the private attr entity._step,
+      which HA 2026.8 renamed to .step — every call 500s instance-wide (frenck/spook#1403, fixed by
+      PR #1407, not yet released as of 2026-08-20). Once Spook ships the fix this script can be simplified
+      back to increment/decrement, but it is correct either way so there is no urgency.
+
+
+      Step/min/max are read from the entity''s own attributes rather than hardcoded, so editing the
+      helper cannot silently desync this script.'
+    fields:
+      direction:
+        description: up = louder, down = quieter, mute = set to 0
+        example: up
+        name: Direction
+        required: true
+        selector:
+          select:
+            options:
+            - up
+            - down
+            - mute
+    icon: mdi:volume-high
+    mode: single
+    sequence:
+    - action: input_number.set_value
+      data:
+        value: '{% set e = ''input_number.nursery_monitor_volume'' %}
+
+          {% set cur = states(e) | float(0) %}
+
+          {% set step = state_attr(e, ''step'') | float(5) %}
+
+          {% set lo = state_attr(e, ''min'') | float(0) %}
+
+          {% set hi = state_attr(e, ''max'') | float(100) %}
+
+          {% if direction == ''mute'' %}{{ lo }}
+
+          {% elif direction == ''up'' %}{{ [ cur + step, hi ] | min }}
+
+          {% else %}{{ [ cur - step, lo ] | max }}
+
+          {% endif %}'
+      target:
+        entity_id: input_number.nursery_monitor_volume

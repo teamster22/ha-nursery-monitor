@@ -1,0 +1,452 @@
+# ha-nursery-monitor — the parent-unit Lovelace view.
+# Exported from a storage-mode dashboard. Paste into a new dashboard's
+# raw config editor (⋮ → Edit → ⋮ → Raw configuration editor).
+# Requires HACS: browser_mod, card-mod, advanced-camera-card, bubble-card.
+
+views:
+- max_columns: 3
+  path: monitor
+  sections:
+  - cards:
+    - cameras:
+      - camera_entity: camera.nursery
+        dimensions:
+          layout:
+            fit: cover
+        go2rtc:
+          modes:
+          - webrtc
+          - mse
+          stream: nursery_kiosk
+        live_provider: go2rtc
+      dimensions:
+        height: 720px
+      grid_options:
+        columns: full
+      live:
+        auto_mute: []
+        auto_pause: []
+        auto_play:
+        - selected
+        - visible
+        auto_unmute:
+        - selected
+        - visible
+        controls:
+          builtin: false
+          next_previous:
+            style: none
+          thumbnails:
+            mode: none
+        draggable: false
+        lazy_load: false
+        transition_effect: none
+      menu:
+        style: none
+      type: custom:advanced-camera-card
+      view:
+        actions:
+          tap_action:
+            action: none
+        default: live
+    column_span: 3
+    type: grid
+  - cards:
+    - card_mod:
+        style: ":host {\n  position: fixed !important;\n  top: 60px !important;\n  left: 14px !important;\n\
+          \  width: auto !important;\n  max-width: 640px !important;\n  z-index: 60 !important;\n  background:\
+          \ rgba(6,6,9,0.66) !important;\n  backdrop-filter: blur(10px) !important;\n  border: 1px solid\
+          \ rgba(222,215,203,0.13) !important;\n  border-radius: 16px !important;\n  overflow: hidden\
+          \ !important;\n}\nha-card {\n  background: transparent !important;\n  border: none !important;\n\
+          \  box-shadow: none !important;\n  padding: 4px 8px !important;\n  --mush-card-primary-font-size:\
+          \ 68px !important;\n  --mush-card-primary-line-height: 1.05 !important;\n  --mush-card-secondary-font-size:\
+          \ 26px !important;\n  --mush-icon-size: 64px !important;\n  --mush-spacing: 8px !important;\n\
+          \  --card-primary-font-size: 68px !important;\n  --card-secondary-font-size: 26px !important;\n\
+          \  --icon-size: 64px !important;\n}\n"
+      cards:
+      - card_mod:
+          style:
+            .: "ha-card {\n  background: transparent !important;\n  border: none !important;\n  box-shadow:\
+              \ none !important;\n  padding: 0 !important;\n}\n"
+            ha-markdown: 'padding: 4px 12px 6px 12px !important;
+
+              display: block !important;
+
+              '
+            ha-markdown$: "h1 {\n  font-size: 48px !important;\n  line-height: 1.0 !important;\n  font-weight:\
+              \ 600 !important;\n  margin: 0 !important;\n  color: #a29c92 !important;\n  letter-spacing:\
+              \ -1.5px !important;\n  border: none !important;\n  padding: 0 !important;\n}\nh3 {\n\
+              \  font-size: 27px !important;\n  line-height: 1.1 !important;\n  font-weight: 400 !important;\n\
+              \  margin: 0 !important;\n  color: #8b857c !important;\n}\n"
+        content: '{% set st = states(''input_select.nursery_state'') %}{% set t = state_attr(''input_datetime.nursery_sleep_started'',''timestamp'')
+          if st in [''asleep'',''settling''] else state_attr(''input_datetime.nursery_last_woke'',''timestamp'')
+          %}{% set d = (as_timestamp(now()) - (t | float(0))) | int %}# {{ st | upper }}
+
+          ### {% if d >= 3600 %}{{ d // 3600 }}h {{ (d % 3600) // 60 }}m{% else %}{{ d // 60 }}m{% endif
+          %}'
+        tap_action:
+          action: perform-action
+          perform_action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.nursery_monitor_controls_shown
+        text_only: true
+        type: markdown
+      - alignment: start
+        card_mod:
+          style: "ha-card {\n  --chip-height: 44px !important;\n  --chip-font-size: 19px !important;\n\
+            \  --chip-font-weight: 500 !important;\n  --chip-icon-size: 25px !important;\n  --chip-border-radius:\
+            \ 11px !important;\n  --chip-spacing: 8px !important;\n}\n"
+        chips:
+        - content: '{{ states(''sensor.floating_devices_nursery_monitor_display_battery'') }}%{{ ''
+            ⚡'' if is_state(''binary_sensor.floating_devices_nursery_monitor_display_plugged_in'',''on'')
+            else '''' }}'
+          icon: '{% set b = states(''sensor.floating_devices_nursery_monitor_display_battery'') | int(100)
+            %}{% if is_state(''binary_sensor.floating_devices_nursery_monitor_display_plugged_in'',''on'')
+            %}mdi:battery-charging{% elif b < 20 %}mdi:battery-alert-variant-outline{% elif b < 40 %}mdi:battery-40{%
+            elif b < 70 %}mdi:battery-70{% else %}mdi:battery{% endif %}'
+          icon_color: '{% set b = states(''sensor.floating_devices_nursery_monitor_display_battery'')
+            | int(100) %}{% if is_state(''binary_sensor.floating_devices_nursery_monitor_display_plugged_in'',''on'')
+            %}green{% elif b < 20 %}red{% elif b < 40 %}amber{% else %}grey{% endif %}'
+          tap_action:
+            action: perform-action
+            perform_action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.nursery_monitor_controls_shown
+          type: template
+        - chip:
+            content: DOOR
+            icon: mdi:door-open
+            icon_color: amber
+            tap_action:
+              action: none
+            type: template
+          conditions:
+          - condition: state
+            entity: binary_sensor.nursery_door_open
+            state: 'on'
+          type: conditional
+        - chip:
+            content: MUTED
+            icon: mdi:volume-off
+            icon_color: red
+            tap_action:
+              action: none
+            type: template
+          conditions:
+          - below: 1
+            condition: numeric_state
+            entity: input_number.nursery_monitor_volume
+          type: conditional
+        - chip:
+            content: '{{ states(''sensor.nursery_airthings_carbon_dioxide'') | float(0) | round(0) |
+              int }}'
+            icon: mdi:molecule-co2
+            icon_color: amber
+            tap_action:
+              action: none
+            type: template
+          conditions:
+          - above: 1200
+            condition: numeric_state
+            entity: sensor.nursery_airthings_carbon_dioxide
+          type: conditional
+        type: custom:mushroom-chips-card
+      grid_options:
+        columns: full
+      keep:
+        background: false
+        box_shadow: false
+        margin: false
+        outer_padding: false
+      mode: vertical
+      tap_action:
+        action: perform-action
+        perform_action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.nursery_monitor_controls_shown
+      type: custom:stack-in-card
+    - card_mod:
+        style: ":host {\n  {% if is_state('input_boolean.nursery_monitor_controls_shown','on') %}\n\
+          \  display: none !important;\n  {% else %}\n  display: block !important;\n  {% endif %}\n\
+          }\nha-card {\n  position: fixed !important;\n  top: 0 !important;\n  left: 0 !important;\n\
+          \  width: 100vw !important;\n  height: 100vh !important;\n  margin: 0 !important;\n  padding:\
+          \ 0 !important;\n  background: transparent !important;\n  border: none !important;\n  border-radius:\
+          \ 0 !important;\n  box-shadow: none !important;\n  z-index: 30 !important;\n}\n"
+      show_icon: false
+      show_name: false
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.nursery_monitor_controls_shown
+      type: custom:button-card
+    column_span: 3
+    type: grid
+  - cards:
+    - card_mod:
+        style: ":host {\n  {% if is_state('input_boolean.nursery_monitor_controls_shown','on') %}\n\
+          \  display: block !important;\n  {% else %}\n  display: none !important;\n  {% endif %}\n\
+          \  position: fixed !important;\n  top: 210px !important;\n  left: 14px !important;\n  width:\
+          \ 350px !important;\n  z-index: 55 !important;\n  background: rgba(6,6,9,0.80) !important;\n\
+          \  backdrop-filter: blur(10px) !important;\n  border: 1px solid rgba(222,215,203,0.13) !important;\n\
+          \  border-radius: 16px !important;\n  overflow: hidden !important;\n  --mush-card-primary-font-size:\
+          \ 18px;\n  --mush-card-secondary-font-size: 14px;\n  --mush-icon-size: 30px;\n}\nha-card {\n\
+          \  background: transparent !important;\n  border: none !important;\n  box-shadow: none !important;\n\
+          }\n"
+      cards:
+      - icon: mdi:clock-outline
+        icon_color: grey
+        primary: '{% set st = states(''input_select.nursery_state'') %}{% set t = state_attr(''input_datetime.nursery_sleep_started'',''timestamp'')
+          if st in [''asleep'',''settling''] else state_attr(''input_datetime.nursery_last_woke'',''timestamp'')
+          %}{{ ''Down'' if st in [''asleep'',''settling''] else ''Woke'' }} {{ t | timestamp_custom(''%-I:%M
+          %p'', true) if t is number else ''—'' }}'
+        secondary: '{% set st = states(''input_select.nursery_state'') %}{% set t = state_attr(''input_datetime.nursery_sleep_started'',''timestamp'')
+          if st in [''asleep'',''settling''] else state_attr(''input_datetime.nursery_last_woke'',''timestamp'')
+          %}{% if t is number %}{% set d = (as_timestamp(now()) - t) | int %}{% if d >= 3600 %}{{ d
+          // 3600 }}h {{ (d % 3600) // 60 }}m ago{% else %}{{ d // 60 }}m ago{% endif %}{% else %}—{%
+          endif %}'
+        tap_action:
+          action: none
+        type: custom:mushroom-template-card
+      - icon: mdi:emoticon-cry-outline
+        icon_color: '{{ ''red'' if is_state(''binary_sensor.nursery_crying_sound'',''on'') else ''grey''
+          }}'
+        primary: '{% set t = state_attr(''input_datetime.nursery_last_cry'',''timestamp'') %}Last cry
+          {{ t | timestamp_custom(''%-I:%M %p'', true) if t is number else ''—'' }}'
+        secondary: '{% set t = state_attr(''input_datetime.nursery_last_cry'',''timestamp'') %}{% if
+          t is number %}{% set d = (as_timestamp(now()) - t) | int %}{% if d >= 3600 %}{{ d // 3600
+          }}h {{ (d % 3600) // 60 }}m ago{% else %}{{ d // 60 }}m ago{% endif %}{% else %}—{% endif
+          %}'
+        tap_action:
+          action: none
+        type: custom:mushroom-template-card
+      - icon: '{{ ''mdi:door-open'' if is_state(''binary_sensor.nursery_door_open'',''on'') else ''mdi:door-closed''
+          }}'
+        icon_color: '{{ ''amber'' if is_state(''binary_sensor.nursery_door_open'',''on'') else ''grey''
+          }}'
+        primary: '{{ ''Door OPEN'' if is_state(''binary_sensor.nursery_door_open'',''on'') else ''Door
+          closed'' }}'
+        secondary: '{% set s = states.binary_sensor.nursery_door_open %}{% if s is not none %}{% set
+          d = (as_timestamp(now()) - as_timestamp(s.last_changed)) | int %}{{ (s.last_changed | as_local).strftime(''%-I:%M
+          %p'') }} · {% if d >= 86400 %}{{ d // 86400 }}d {{ (d % 86400) // 3600 }}h{% elif d >= 3600
+          %}{{ d // 3600 }}h {{ (d % 3600) // 60 }}m{% else %}{{ d // 60 }}m{% endif %} ago{% else %}—{%
+          endif %}'
+        tap_action:
+          action: none
+        type: custom:mushroom-template-card
+      - icon: mdi:thermometer
+        icon_color: '{{ ''amber'' if states(''sensor.nursery_airthings_carbon_dioxide'') | float(0)
+          > 1200 else ''grey'' }}'
+        primary: '{% set t = ''sensor.nursery_temperature_smoothed'' %}{% set h = ''sensor.nursery_humidity_smoothed''
+          %}{{ (states(t) | float | round(1)) ~ ''°'' if has_value(t) else ''—'' }} · {{ (states(h)
+          | float | round(0) | int) ~ ''%'' if has_value(h) else ''—'' }}'
+        secondary: '{% set c = ''sensor.nursery_airthings_carbon_dioxide'' %}CO₂ {{ (states(c) | float
+          | round(0) | int) ~ '' ppm'' if has_value(c) else ''—'' }}'
+        tap_action:
+          action: none
+        type: custom:mushroom-template-card
+      grid_options:
+        columns: full
+      keep:
+        background: false
+        box_shadow: false
+        margin: false
+        outer_padding: false
+      mode: vertical
+      type: custom:stack-in-card
+    column_span: 3
+    type: grid
+  - cards:
+    - card_mod:
+        style: ":host {\n  {% if is_state('input_boolean.nursery_monitor_controls_shown','on') %}\n\
+          \  display: block !important;\n  {% else %}\n  display: none !important;\n  {% endif %}\n\
+          \  position: fixed !important;\n  left: 50% !important;\n  transform: translateX(-50%) !important;\n\
+          \  bottom: 14px !important;\n  width: 850px !important;\n  z-index: 50 !important;\n  background:\
+          \ rgba(6,6,9,0.88) !important;\n  border: 1px solid rgba(222,215,203,0.14) !important;\n \
+          \ border-radius: 14px !important;\n  overflow: hidden !important;\n}\nha-card {\n  background:\
+          \ transparent !important;\n  border: none !important;\n  box-shadow: none !important;\n}\n"
+      cards:
+      - card_mod:
+          style: 'ha-card { --mush-card-primary-font-size: 17px !important; padding: 6px 2px !important;
+            }
+
+            '
+        icon: mdi:volume-minus
+        icon_color: grey
+        primary: Quieter
+        tap_action:
+          action: perform-action
+          data:
+            direction: down
+          perform_action: script.nursery_monitor_volume_step
+        type: custom:mushroom-template-card
+      - card_mod:
+          style: 'ha-card { --mush-card-primary-font-size: 17px !important; padding: 6px 2px !important;
+            }
+
+            '
+        icon: mdi:volume-off
+        icon_color: '{{ ''red'' if states(''input_number.nursery_monitor_volume'') | float(0) == 0 else
+          ''grey'' }}'
+        primary: '{{ ''Muted'' if states(''input_number.nursery_monitor_volume'') | float(0) == 0 else
+          states(''input_number.nursery_monitor_volume'') | int(0) ~ ''%'' }}'
+        tap_action:
+          action: perform-action
+          data:
+            direction: mute
+          perform_action: script.nursery_monitor_volume_step
+        type: custom:mushroom-template-card
+      - card_mod:
+          style: 'ha-card { --mush-card-primary-font-size: 17px !important; padding: 6px 2px !important;
+            }
+
+            '
+        icon: mdi:volume-plus
+        icon_color: grey
+        primary: Louder
+        tap_action:
+          action: perform-action
+          data:
+            direction: up
+          perform_action: script.nursery_monitor_volume_step
+        type: custom:mushroom-template-card
+      - icon: mdi:brightness-4
+        name: Dimmer
+        size: 32px
+        styles:
+          card:
+          - padding: 6px 2px
+          name:
+          - font-size: 17px
+        tap_action:
+          action: perform-action
+          perform_action: script.nursery_monitor_brightness_down
+        type: custom:button-card
+      - icon: mdi:brightness-7
+        name: Brighter
+        size: 32px
+        styles:
+          card:
+          - padding: 6px 2px
+          name:
+          - font-size: 17px
+        tap_action:
+          action: perform-action
+          perform_action: script.nursery_monitor_brightness_up
+        type: custom:button-card
+      - icon: mdi:weather-night
+        name: Sleep Tablet
+        size: 32px
+        styles:
+          card:
+          - padding: 6px 2px
+          name:
+          - font-size: 17px
+        tap_action:
+          action: perform-action
+          perform_action: script.nursery_monitor_sleep
+        type: custom:button-card
+      - icon: mdi:refresh
+        name: Reload
+        size: 32px
+        styles:
+          card:
+          - padding: 6px 2px
+          icon:
+          - color: '#7f9fc4'
+          name:
+          - font-size: 17px
+        tap_action:
+          action: perform-action
+          confirmation:
+            text: Reload the monitor? The picture will go blank for a few seconds while it reconnects.
+          perform_action: button.press
+          target:
+            entity_id: button.floating_devices_nursery_monitor_display_load_start_url
+        type: custom:button-card
+      grid_options:
+        columns: full
+      keep:
+        background: false
+        box_shadow: false
+        margin: false
+        outer_padding: false
+      mode: horizontal
+      type: custom:stack-in-card
+    column_span: 3
+    type: grid
+  - cards:
+    - card_mod:
+        style: ":host {\n  position: fixed !important;\n  top: 70px !important;\n  left: 50% !important;\n\
+          \  transform: translateX(-50%) !important;\n  width: 420px !important;\n  z-index: 300 !important;\n\
+          }\nha-card {\n  background: rgba(224,82,82,0.92) !important;\n  border: 2px solid #ff8a8a\
+          \ !important;\n  box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important;\n  --primary-text-color:\
+          \ #ffffff;\n  --secondary-text-color: #ffe0e0;\n}\n"
+      fill_container: true
+      grid_options:
+        columns: full
+      icon: mdi:emoticon-cry
+      icon_color: red
+      primary: CRYING
+      secondary: '{% set t = state_attr(''input_datetime.nursery_last_cry'',''timestamp'') %}{{ relative_time(as_datetime(t))
+        if t is number else ''—'' }}'
+      tap_action:
+        action: none
+      type: custom:mushroom-template-card
+      visibility:
+      - condition: state
+        entity: binary_sensor.nursery_crying_sound
+        state: 'on'
+    - card_mod:
+        style: ":host {\n  position: fixed !important;\n  top: 70px !important;\n  left: 50% !important;\n\
+          \  transform: translateX(-50%) !important;\n  width: 470px !important;\n  z-index: 300 !important;\n\
+          }\nha-card {\n  background: rgba(224,82,82,0.95) !important;\n  border: 3px solid #ff8a8a\
+          \ !important;\n  box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important;\n  --primary-text-color:\
+          \ #ffffff;\n  --secondary-text-color: #ffe0e0;\n}\n"
+      fill_container: true
+      grid_options:
+        columns: full
+      icon: mdi:cctv-off
+      icon_color: red
+      primary: STREAM DOWN
+      secondary: No picture — this is NOT a dark room. TAP HERE to reload.
+      tap_action:
+        action: perform-action
+        perform_action: button.press
+        target:
+          entity_id: button.floating_devices_nursery_monitor_display_load_start_url
+      type: custom:mushroom-template-card
+      visibility:
+      - condition: state
+        entity: camera.nursery
+        state: unavailable
+    column_span: 3
+    type: grid
+  - cards:
+    - card_mod:
+        style: "ha-card {\n  position: fixed !important;\n  top: 0 !important;\n  left: 0 !important;\n\
+          \  width: 100vw !important;\n  height: 100vh !important;\n  margin: 0 !important;\n  padding:\
+          \ 0 !important;\n  background: #000000 !important;\n  backdrop-filter: none !important;\n\
+          \  border: none !important;\n  border-radius: 0 !important;\n  box-shadow: none !important;\n\
+          \  z-index: 9999 !important;\n}\n"
+      icon: mdi:baby-face-outline
+      show_name: false
+      show_state: false
+      size: 80px
+      styles:
+        icon:
+        - opacity: '0.07'
+      tap_action:
+        action: perform-action
+        perform_action: script.nursery_monitor_wake
+      type: custom:button-card
+    column_span: 3
+    type: grid
+    visibility:
+    - condition: state
+      entity: input_boolean.nursery_monitor_active
+      state: 'off'
+  theme: Nursery Monitor
+  title: Monitor
+  type: sections

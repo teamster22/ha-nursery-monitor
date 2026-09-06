@@ -1,0 +1,65 @@
+# ============================================================================
+# ha-nursery-monitor — template sensors
+#
+# binary_sensor.nursery_nap is the system's single output: is she asleep?
+# sensor.nursery_nap_confidence is how sure it is, and it DECAYS with elapsed
+# time — a 3-hour-old "asleep" is worth less than a 20-minute-old one. The
+# decay window is set at sleep start (night vs day) and never re-evaluated,
+# so a nap that crosses into evening doesn't suddenly get graded on the night
+# curve.
+# ============================================================================
+
+template:
+- sensor:
+  - name: Nursery Nap Confidence
+    state: "{% set g = states('input_select.nursery_ground_truth') %}\n{% set s = states('input_select.nursery_state')\
+      \ %}\n{% set ts = state_attr('input_datetime.nursery_sleep_started','timestamp') %}\n{% set lux\
+      \ = states('sensor.nursery_light_level_smoothed') | float(0) %}\n{% set lux_raw = states('sensor.nursery_presence_sensor_light_sensor_light_level')\
+      \ | float(0) %}\n{% set el = ((as_timestamp(now()) - ts) / 60) if ts is number else 0 %}\n{# Night-ness\
+      \ fixed at SLEEP START, never re-evaluated (see prior note). #}\n{% set sh = (ts | timestamp_custom('%H')\
+      \ | int) if ts is number else 12 %}\n{% set night = (sh >= 17 or sh < 6) %}\n{% set cap  = 840\
+      \ if night else 210 %}\n{% set zero = 1020 if night else 360 %}\n{% set fade = 1 if el <= cap\
+      \ else ([(zero - el) / (zero - cap), 0] | max) %}\n{# 'lit' veto requires BOTH raw AND smoothed\
+      \ > 30 — the smoothed filter freezes high in the dark, so raw is the tiebreaker (holds at true\
+      \ 0). #}\n{% set lit = lux > 30 and lux_raw > 30 %}\n{% if g == 'awake' %}0\n{% elif g == 'asleep'\
+      \ %}\n  {{ (95 * fade) | round(0) }}\n{% elif s == 'asleep' %}\n  {% set base = 85 * fade %}\n\
+      \  {% set vetoed = (base - 40) if lit else base %}\n  {{ [[vetoed, 0] | max, 100] | min | round(0)\
+      \ }}\n{% elif s == 'settling' %}\n  50\n{% elif s == 'tending' %}\n  5\n{% else %}\n  0\n{% endif\
+      \ %}"
+    state_class: measurement
+    unit_of_measurement: '%'
+  - name: Nursery Battery Charge Seg
+    state: '{% if is_state(''binary_sensor.nursery_nap'',''on'') or is_state(''input_boolean.nursery_external_sleep'',''on'')
+      %}{{ states(''input_number.nursery_sleep_battery'') }}{% else %}{{ none }}{% endif %}'
+    unit_of_measurement: '%'
+  - name: Nursery Battery Drain Seg
+    state: '{% if is_state(''binary_sensor.nursery_nap'',''on'') or is_state(''input_boolean.nursery_external_sleep'',''on'')
+      %}{{ none }}{% else %}{{ states(''input_number.nursery_sleep_battery'') }}{% endif %}'
+    unit_of_measurement: '%'
+  - name: Nursery Phone Cry Alerts
+    state: '{% if is_state(''input_boolean.nursery_cry_alerts_snoozed'',''on'') %}{% set t = state_attr(''input_datetime.nursery_cry_snooze_until'',''timestamp'')
+      | float(0) %}{% set r = (t - as_timestamp(now())) | int %}{% if r <= 0 %}Restoring{% elif r >=
+      3600 %}Snoozed {{ r // 3600 }}h {{ (r % 3600) // 60 }}m{% else %}Snoozed {{ (r // 60) + 1 }}m{%
+      endif %}{% else %}Active{% endif %}'
+  - name: Nursery Tablet Cry Alerts
+    state: '{% if is_state(''input_boolean.nursery_tablet_alerts_snoozed'',''on'') %}{% set t = state_attr(''input_datetime.nursery_tablet_snooze_until'',''timestamp'')
+      | float(0) %}{% set r = (t - as_timestamp(now())) | int %}{% if r <= 0 %}Restoring{% elif r >=
+      3600 %}Snoozed {{ r // 3600 }}h {{ (r % 3600) // 60 }}m{% else %}Snoozed {{ (r // 60) + 1 }}m{%
+      endif %}{% else %}Active{% endif %}'
+  binary_sensor:
+  - device_class: occupancy
+    name: Nursery Nap
+    state: '{% set g = states(''input_select.nursery_ground_truth'') %}
+
+      {% if g == ''asleep'' %}true
+
+      {% elif g == ''awake'' %}false
+
+      {% else %}{{ is_state(''input_select.nursery_state'', ''asleep'') }}
+
+      {% endif %}'
+  - device_class: occupancy
+    name: Nursery Adult Present
+    state: '{{ is_state(''input_select.nursery_state'',''tending'') or is_state(''binary_sensor.nursery_door_open'',''on'')
+      or (is_state(''binary_sensor.nursery_presence_sensor'',''on'') and is_state(''binary_sensor.nursery_person_occupancy'',''on''))
+      }}'

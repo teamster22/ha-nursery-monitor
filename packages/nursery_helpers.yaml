@@ -1,0 +1,218 @@
+# ============================================================================
+# ha-nursery-monitor — helpers
+#
+# Every tunable in the system is a helper, deliberately: thresholds you will
+# want to change at 3am should not require a YAML edit and a reload.
+# ============================================================================
+
+input_boolean:
+  nursery_external_sleep:
+    icon: mdi:sleep
+    name: Nursery External Sleep
+  nursery_camera_outage_alerted:
+    icon: mdi:cctv-off
+    name: Nursery Camera Outage Alerted
+  nursery_monitor_active:
+    icon: mdi:tablet-dashboard
+    name: Nursery Monitor Active
+  nursery_monitor_controls_shown:
+    icon: mdi:gesture-tap
+    name: Nursery Monitor Controls Shown
+  nursery_cry_alerts_snoozed:
+    icon: mdi:bell-sleep
+    name: Nursery Cry Alerts Snoozed
+  nursery_tablet_alerts_snoozed:
+    icon: mdi:tablet-off
+    name: Nursery Tablet Alerts Snoozed
+input_datetime:
+  nursery_sleep_started:
+    has_date: true
+    has_time: true
+    icon: mdi:clock-start
+    name: Nursery Sleep Started
+  nursery_last_woke:
+    has_date: true
+    has_time: true
+    icon: mdi:weather-sunset-up
+    name: Nursery Last Woke
+  nursery_battery_last_tick:
+    has_date: true
+    has_time: true
+    icon: mdi:timer-cog-outline
+    name: Nursery Battery Last Tick
+  nursery_last_cry:
+    has_date: true
+    has_time: true
+    icon: mdi:emoticon-cry-outline
+    name: Nursery Last Cry
+  nursery_door_last_opened:
+    has_date: true
+    has_time: true
+    icon: mdi:door-open
+    name: Nursery Door Last Opened
+  nursery_cry_snooze_until:
+    has_date: true
+    has_time: true
+    icon: mdi:bell-badge-outline
+    name: Nursery Cry Snooze Until
+  nursery_tablet_snooze_until:
+    has_date: true
+    has_time: true
+    icon: mdi:tablet-dashboard
+    name: Nursery Tablet Snooze Until
+input_number:
+  nursery_sleep_battery:
+    icon: mdi:battery-heart-variant
+    max: 115.0
+    min: -15.0
+    mode: box
+    name: Nursery Sleep Battery
+    step: 1.0
+    unit_of_measurement: '%'
+  nursery_wake_window:
+    icon: mdi:timer-sand-empty
+    max: 360.0
+    min: 60.0
+    mode: slider
+    name: Nursery Wake Window
+    step: 15.0
+    unit_of_measurement: min
+  nursery_nap_recharge:
+    icon: mdi:sleep
+    max: 240.0
+    min: 30.0
+    mode: slider
+    name: Nursery Nap Recharge
+    step: 15.0
+    unit_of_measurement: min
+  nursery_monitor_volume:
+    icon: mdi:volume-high
+    max: 100.0
+    min: 0.0
+    mode: slider
+    name: Nursery Monitor Volume
+    step: 5.0
+    unit_of_measurement: '%'
+  nursery_monitor_brightness_day:
+    icon: mdi:brightness-7
+    max: 255.0
+    min: 0.0
+    mode: slider
+    name: Nursery Monitor Brightness Day
+    step: 5.0
+  nursery_monitor_brightness_night:
+    icon: mdi:brightness-3
+    max: 255.0
+    min: 0.0
+    mode: slider
+    name: Nursery Monitor Brightness Night
+    step: 5.0
+  nursery_cry_qualify_seconds:
+    icon: mdi:timer-sand
+    max: 30.0
+    min: 2.0
+    mode: slider
+    name: Nursery Cry Qualify Seconds
+    step: 1.0
+    unit_of_measurement: s
+  nursery_alert_cooldown_minutes:
+    icon: mdi:bell-sleep-outline
+    max: 10.0
+    min: 1.0
+    mode: slider
+    name: Nursery Alert Cooldown Minutes
+    step: 1.0
+    unit_of_measurement: min
+  nursery_monitor_brightness:
+    icon: mdi:brightness-6
+    max: 255.0
+    min: 0.0
+    mode: slider
+    name: Nursery Monitor Brightness
+    step: 5.0
+  nursery_cry_snooze_minutes:
+    icon: mdi:timer-sand
+    max: 720.0
+    min: 5.0
+    mode: box
+    name: Nursery Cry Snooze Minutes
+    step: 5.0
+    unit_of_measurement: min
+  nursery_tablet_snooze_minutes:
+    icon: mdi:timer-sand
+    max: 720.0
+    min: 5.0
+    mode: box
+    name: Nursery Tablet Snooze Minutes
+    step: 5.0
+    unit_of_measurement: min
+  nursery_chime_volume:
+    icon: mdi:bell-ring
+    max: 100.0
+    min: 0.0
+    mode: slider
+    name: Nursery Chime Volume
+    step: 5.0
+    unit_of_measurement: '%'
+input_select:
+  nursery_state:
+    icon: mdi:sleep
+    name: Nursery State
+    options:
+    - unknown
+    - awake
+    - tending
+    - settling
+    - asleep
+  nursery_ground_truth:
+    icon: mdi:check-decagram
+    name: Nursery Ground Truth
+    options:
+    - unknown
+    - awake
+    - asleep
+input_text:
+  nursery_vp_probe:
+    icon: mdi:ruler
+    max: 255
+    min: 0
+    mode: text
+    name: Nursery VP Probe
+timer:
+  nursery_monitor_inactivity:
+    duration: 0:05:00
+    icon: mdi:timer-sand
+    name: Nursery Monitor Inactivity
+    restore: true
+  nursery_monitor_alert_cooldown:
+    duration: 0:06:00
+    icon: mdi:bell-sleep-outline
+    name: Nursery Monitor Alert Cooldown
+    restore: true
+
+# The nap-window schedule. Edit these in the HA UI once imported; the values
+# below are only a starting point (a single midday nap).
+schedule:
+  nursery_nap_windows:
+    name: Nursery Nap Windows
+    icon: mdi:calendar-clock
+    monday:    [{from: "12:00:00", to: "14:00:00"}]
+    tuesday:   [{from: "12:00:00", to: "14:00:00"}]
+    wednesday: [{from: "12:00:00", to: "14:00:00"}]
+    thursday:  [{from: "12:00:00", to: "14:00:00"}]
+    friday:    [{from: "12:00:00", to: "14:00:00"}]
+    saturday:  [{from: "12:00:00", to: "14:00:00"}]
+    sunday:    [{from: "12:00:00", to: "14:00:00"}]
+
+# Hours slept in the last 24h. This is the one number worth putting on a
+# dashboard: it answers "has she actually been sleeping?" without you having
+# to reconstruct it from a logbook.
+sensor:
+  - platform: history_stats
+    name: Nursery Sleep 24h
+    unique_id: nursery_sleep_24h
+    entity_id: binary_sensor.nursery_nap
+    state: "on"
+    type: time
+    start: "{{ now() - timedelta(hours=24) }}"
+    end: "{{ now() }}"
