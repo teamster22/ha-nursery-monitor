@@ -8,8 +8,12 @@ It has been running in my house since July 2026.
 
 ![The nursery monitor kiosk view](media/nursery-monitor-tablet.png)
 
-*The kiosk view, room empty. State and elapsed time bottom-left, the rest of the
-screen is the camera.*
+*Resting state. One line of status, and the rest of the screen is the room.*
+
+![The same view with controls and sensor detail shown](media/nursery-monitor-controls.png)
+
+*The same screen after a tap. Recent events, climate, and the control bar appear
+for twelve seconds and then get out of the way again.*
 
 > **Read [DISCLAIMER.md](DISCLAIMER.md) before you install any of this.** It's
 > convenience automation. It is not a breathing monitor, it is not a medical
