@@ -7,7 +7,7 @@ What commercial baby monitors put on screen, and what I copied.
 > engineer, so read the config yourself before you run it.
 
 
-**Purpose:** inspiration and a decision framework for laying out the `nursery-monitor` kiosk. Written that month after a long build session that produced a working-but-unsatisfying layout.
+**Purpose:** inspiration and a decision framework for laying out the `nursery-monitor` kiosk. Written after a long build session that produced a working-but-unsatisfying layout.
 **Companion:** [tablet-build.md](tablet-build.md) (the build).
 
 ---
@@ -16,7 +16,7 @@ What commercial baby monitors put on screen, and what I copied.
 
 There is a mature design literature for exactly this class of screen — it just isn't filed under "smart home." It's called the **operational / wall-mounted monitoring dashboard**, and its two governing ideas are:
 
-> **Dark cockpit.** Dark surfaces are a *functional* requirement, not an aesthetic one, for any screen watched in low ambient light. Alerts must pop against the background; colour-coded severity has to be instantly scannable.
+> **Dark cockpit.** Dark surfaces are a *functional* requirement, not an aesthetic one, for any screen watched in low ambient light. Alerts must pop against the background; color-coded severity has to be instantly scannable.
 
 > **Exception-based display.** The goal is *ambient awareness*: a steady signal that fades into the background when everything is normal, and becomes impossible to ignore the moment something changes.
 
@@ -32,7 +32,7 @@ There is a mature design literature for exactly this class of screen — it just
 |---|---|
 | **Eufy E10 / OEM monitors** | One question, one answer. Video *is* the status display. Everything else is an interruption. |
 | **Nanit / Miku** (premium monitors) | Data exists but lives **one level down**. The live view is clean; breathing/sleep analytics are a separate screen you go to deliberately. |
-| **Operational NOC dashboards** | Exception-based: normal state = quiet. Severity is carried by **colour + position**, not by more text. |
+| **Operational NOC dashboards** | Exception-based: normal state = quiet. Severity is carried by **color + position**, not by more text. |
 | **Aviation "dark cockpit"** | If a light is on, something needs you. Nothing is lit during normal operation. **The absence of indication IS the indication.** |
 | **HA wall-panel community practice** | Build a *separate, lighter* dashboard per device; don't reuse a general dashboard. Cheap tablets choke on cards. (We already do this.) |
 
@@ -58,8 +58,8 @@ There is a mature design literature for exactly this class of screen — it just
 **Always visible:** video, plus **one** line of text — the state and how long it's held. That is the whole answer to "is she OK?"
 
 **Appears only on exception:**
-- **CRYING** — large, red, centre
-- **STREAM DOWN** — large, red, centre
+- **CRYING** — large, red, center
+- **STREAM DOWN** — large, red, center
 - **DOOR OPEN** — small amber marker (it's abnormal while she's asleep)
 - **Tablet on battery < 20 %** — small amber marker
 - **CO₂ > 1200 ppm** — small amber marker
@@ -85,7 +85,7 @@ There is a mature design literature for exactly this class of screen — it just
 └──────────────────────────────────────────────┘
 ```
 
-Persistent narrow rail, but **cut to 3 items max** and set in a *dimmer* colour than the video so it recedes. Controls as a permanent bottom bar.
+Persistent narrow rail, but **cut to 3 items max** and set in a *dimmer* color than the video so it recedes. Controls as a permanent bottom bar.
 
 **Trade-off:** you keep at-a-glance climate, but you spend ~20 % of the screen on data you rarely act on, and the rail competes with the video for attention every time you glance up.
 
@@ -102,10 +102,10 @@ Video edge to edge. **Nothing else, ever**, except the two red exceptions. All s
 ## 4. Design rules to apply regardless of option
 
 1. **One thing must be readable from 3 metres.** Currently nothing is. The state word (`ASLEEP`) should be the largest text on screen — it is what you read from the doorway. Everything else can require walking closer.
-2. **Reserve colour for exceptions.** Red = crying or blind. Amber = worth knowing. Everything normal is grey/white. Right now purple/green/amber state icons spend colour on the normal case, which devalues it.
+2. **Reserve color for exceptions.** Red = crying or blind. Amber = worth knowing. Everything normal is gray/white. Right now purple/green/amber state icons spend color on the normal case, which devalues it.
 3. **Timestamps are worse than durations.** "Down 7:30" makes you do arithmetic at 3am. "Asleep 2h 14m" doesn't. Prefer elapsed time everywhere.
 4. **Controls should be few and large.** Six controls is at least two too many for a device operated half-asleep. Volume ± and Sleep are essential; brightness is arguably automatic (it's already state-driven in §3 of the plan) and Mute duplicates Volume-to-zero.
-5. **Never show a number without a threshold.** "1281 ppm" means nothing at a glance. Either colour it against a threshold or don't show it.
+5. **Never show a number without a threshold.** "1281 ppm" means nothing at a glance. Either color it against a threshold or don't show it.
 
 ---
 
@@ -114,9 +114,9 @@ Video edge to edge. **Nothing else, ever**, except the two red exceptions. All s
 **Go with Option A**, and specifically:
 
 - **Video ~90 % of the screen.**
-- **One persistent line:** state + elapsed (`ASLEEP · 2h 14m`), large, bottom-left, dim grey.
+- **One persistent line:** state + elapsed (`ASLEEP · 2h 14m`), large, bottom-left, dim gray.
 - **Exception markers** appear inline on that same line — door, CO₂, battery — as small amber icons, only when abnormal. No text unless tapped.
-- **CRYING / STREAM DOWN** stay as the big red centre banners (already built).
+- **CRYING / STREAM DOWN** stay as the big red center banners (already built).
 - **Controls hidden**, revealed by tapping the video, auto-hiding after ~10 s.
 
 **Why this also solves the technical problem we hit tonight:** far fewer permanently-rendered cards means far less to go wrong, and the exception markers can be plain conditional cards rather than fixed-position overlays. The layout stops fighting the grid because there is almost nothing in it.

@@ -2,6 +2,11 @@
 # Exported from a storage-mode dashboard. Paste into a new dashboard's
 # raw config editor (⋮ → Edit → ⋮ → Raw configuration editor).
 # Requires HACS: browser_mod, card-mod, advanced-camera-card, bubble-card.
+#
+# HOW THIS WAS BUILT: an LLM wrote essentially all of this. The author steered and
+# tested it against a real house, but is NOT a software engineer and cannot vouch
+# for the code quality or explain every line. Read it before you run it.
+# NOT A MEDICAL DEVICE. Does not monitor breathing. See DISCLAIMER.md.
 
 views:
 - max_columns: 3

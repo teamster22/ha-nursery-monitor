@@ -11,6 +11,11 @@
 # response visibly slower at exactly the moment it matters.
 #
 # ⚠️ Read DISCLAIMER.md first.
+#
+# HOW THIS WAS BUILT: an LLM wrote essentially all of this. The author steered and
+# tested it against a real house, but is NOT a software engineer and cannot vouch
+# for the code quality or explain every line. Read it before you run it.
+# NOT A MEDICAL DEVICE. Does not monitor breathing. See DISCLAIMER.md.
 # ============================================================================
 
 automation:
@@ -67,7 +72,7 @@ automation:
       entity_id: input_boolean.nursery_monitor_controls_shown
   mode: restart
 - alias: Nursery Monitor — Qualified cry
-  description: "THE CENTREPIECE. Frigate hears sustained crying -> wake the tablet, play the alert chime,\
+  description: "THE CENTERPIECE. Frigate hears sustained crying -> wake the tablet, play the alert chime,\
     \ hold the panel awake.\n\n=== HARD OFF SWITCH ===\nThis automation is toggled\
     \ directly by the 'Tablet Alert Automation' tile on the v3 Nursery view (automation.toggle).\n⚠️\
     \ UNLIKE THE SNOOZE, TURNING IT OFF HAS NO EXPIRY. It stays off until someone switches it back on\
@@ -325,7 +330,7 @@ automation:
     its camera; this is that beep.
 
 
-    It also fires when the battery is let run flat on the couch — correct behaviour, not a bug. automation.nursery_monitor_low_battery
+    It also fires when the battery is let run flat on the couch — correct behavior, not a bug. automation.nursery_monitor_low_battery
     at 20% is what makes it PREDICTABLE rather than merely annoying (§3.7).
 
 
@@ -684,7 +689,7 @@ automation:
     \ and there is no longer a restore-race between the two — the 15s window that previously existed\
     \ is gone.\n⚠️ CONSEQUENCE: while this mute is active the tablet volume is 0, and because the cry\
     \ automation does not raise volume, A CRY CHIME DURING AN ACTIVE MUTE IS SILENT. That is the intended\
-    \ behaviour (an adult is in the room) but it is worth knowing when reading traces.\n\n=== FAIL DIRECTION\
+    \ behavior (an adult is in the room) but it is worth knowing when reading traces.\n\n=== FAIL DIRECTION\
     \ ===\nAll three triggers fire on a transition INTO the detected state, and the restore only happens\
     \ when the composite goes off. Unavailable sensors do not fire, so a sensor outage leaves audio\
     \ WORKING rather than silently muting a baby monitor — the standing rule here is FAIL TOWARD THE\
@@ -971,7 +976,7 @@ script:
     - action: timer.start
       target:
         entity_id: timer.nursery_monitor_inactivity
-      note: 5 min. Restarting a running timer is the intended 'keep awake' behaviour.
+      note: 5 min. Restarting a running timer is the intended 'keep awake' behavior.
     mode: restart
   nursery_monitor_sleep:
     alias: Nursery Monitor — Sleep
@@ -1000,7 +1005,7 @@ script:
         entity_id: media_player.floating_devices_nursery_monitor_display
       data:
         volume_level: 0
-      note: Audio ceases while dormant — desired behaviour per §3.1, matching the Eufy E10.
+      note: Audio ceases while dormant — desired behavior per §3.1, matching the Eufy E10.
     - action: input_number.set_value
       target:
         entity_id: input_number.nursery_monitor_brightness

@@ -10,6 +10,11 @@
 # stairs. Tune it to your own house; the helper exists so you don't edit YAML.
 #
 # ⚠️ Read DISCLAIMER.md first.
+#
+# HOW THIS WAS BUILT: an LLM wrote essentially all of this. The author steered and
+# tested it against a real house, but is NOT a software engineer and cannot vouch
+# for the code quality or explain every line. Read it before you run it.
+# NOT A MEDICAL DEVICE. Does not monitor breathing. See DISCLAIMER.md.
 # ============================================================================
 
 automation:
@@ -324,7 +329,7 @@ automation:
   description: 'THE FORGET-PROOF HALF. Clears input_boolean.nursery_cry_alerts_snoozed once input_datetime.nursery_cry_snooze_until
     has passed. Turning the boolean off is all this does — automation.nursery_cry_snooze_manager then
     sends the ''alerts are back ON'' push, so the timed expiry and a manual early cancel produce identical
-    behaviour.
+    behavior.
 
 
     === WHY A time_pattern WATCHDOG AND NOT A `for:` TRIGGER OR A timer ===

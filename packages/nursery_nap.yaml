@@ -21,6 +21,11 @@
 # ⚠️ Read DISCLAIMER.md first. This is convenience automation. It is NOT a
 # breathing monitor, NOT a medical device, and must never be relied on for a
 # child's wellbeing.
+#
+# HOW THIS WAS BUILT: an LLM wrote essentially all of this. The author steered and
+# tested it against a real house, but is NOT a software engineer and cannot vouch
+# for the code quality or explain every line. Read it before you run it.
+# NOT A MEDICAL DEVICE. Does not monitor breathing. See DISCLAIMER.md.
 # ============================================================================
 
 automation:

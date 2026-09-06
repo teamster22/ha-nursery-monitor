@@ -7,6 +7,11 @@
 # decay window is set at sleep start (night vs day) and never re-evaluated,
 # so a nap that crosses into evening doesn't suddenly get graded on the night
 # curve.
+#
+# HOW THIS WAS BUILT: an LLM wrote essentially all of this. The author steered and
+# tested it against a real house, but is NOT a software engineer and cannot vouch
+# for the code quality or explain every line. Read it before you run it.
+# NOT A MEDICAL DEVICE. Does not monitor breathing. See DISCLAIMER.md.
 # ============================================================================
 
 template:

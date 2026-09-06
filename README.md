@@ -6,6 +6,11 @@ critical alert when she cries, and wakes the tablet in under a second.
 
 It has been running in my house since July 2026.
 
+![The nursery monitor kiosk view](media/nursery-monitor-tablet.png)
+
+*The kiosk view, room empty. State and elapsed time bottom-left, the rest of the
+screen is the camera.*
+
 > **Read [DISCLAIMER.md](DISCLAIMER.md) before you install any of this.** It's
 > convenience automation. It is not a breathing monitor, it is not a medical
 > device, and nothing here should ever be relied on for a child's wellbeing.
