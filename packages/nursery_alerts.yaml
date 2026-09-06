@@ -14,9 +14,8 @@
 
 automation:
 - alias: Nursery — Baby crying (critical)
-  description: '⚠️ TEMPORARY AUDIENCE (July 2026, I): notify target narrowed notify.parents
-    → notify.parents for the Nursery Monitor tablet build-out. REVERT TO notify.parents once
-    the tablet is stable (Nursery_Monitor_Tablet_Plan.md §11). Decision July 2026: hold through the
+  description: '⚠️ TEMPORARY AUDIENCE: notify target was narrowed from the full household group to a single device for the tablet build-out. REVERT to the full group once
+    the tablet is stable (docs/tablet-build.md §11). Decision: hold through the
     N7 bake-in; the revert is an N7 EXIT CRITERION.
 
 
@@ -27,7 +26,7 @@ automation:
     or the crying threshold (0.75) in Frigate config.yaml BEFORE weakening this automation.
 
 
-    === BABYSITTER SNOOZE (I, July 2026) ===
+    === BABYSITTER SNOOZE (I, at the time) ===
 
     This automation is gated by input_boolean.nursery_cry_alerts_snoozed. When a snooze is running,
     PHONE cry pushes stop; nothing else changes.
@@ -49,7 +48,7 @@ automation:
     to ALERTING, never to silence.
 
 
-    === DOOR SUPPRESSION + 90s GRACE (I, July 2026) ===
+    === DOOR SUPPRESSION + 90s GRACE (I, at the time) ===
 
     Do not alert while the nursery door is OPEN (an adult is tending her), and not for 90 SECONDS AFTER
     it closes (they are still within earshot).
@@ -64,7 +63,7 @@ automation:
 
     ⚠️ WHY THE DOOR CHECK IS A TEMPLATE, NOT `state: ''off'' for: 90s`. The native form evaluates FALSE
     on `unavailable`/`unknown`, so one dead door-sensor battery would suppress every cry alert forever
-    with no outward sign. Verified in the wild July 2026: this sensor really does flick to `unavailable`.
+    with no outward sign. Verified in the wild at the time: this sensor really does flick to `unavailable`.
     The template returns TRUE for unavailable/unknown so a broken sensor fails TOWARD alerting. NEVER
     simplify it.
 
@@ -131,11 +130,11 @@ automation:
       minutes: '{{ states(''input_number.nursery_alert_cooldown_minutes'') | int(3) }}'
   mode: single
 - alias: Nursery camera offline (heartbeat)
-  description: '⚠️ TEMPORARY AUDIENCE (July 2026, I): both notify targets narrowed notify.parents
-    → notify.parents for the Nursery Monitor tablet build-out. REVERT TO notify.parents once
-    the tablet is stable and complete (tracked in Nursery_Monitor_Tablet_Plan.md §11). --- RELIABILITY
+  description: '⚠️ TEMPORARY AUDIENCE: both notify targets narrowed notify.parents
+    → notify.parents for the Nursery Monitor tablet build-out. REVERT to the full group once
+    the tablet is stable and complete (tracked in docs/tablet-build.md §11). --- RELIABILITY
     GUARD for the baby monitor. If camera.nursery is unavailable for 5 minutes the monitor is effectively
-    dead and we would not know - a silent failure is the worst outcome for this device. FIXED July 2026:
+    dead and we would not know - a silent failure is the worst outcome for this device. FIXED at the time:
     the recovery branch used to fire on ANY return to ''recording'', so a 20-second ffmpeg blip produced
     a ''back online'' alert for an outage that was never announced. input_boolean.nursery_camera_outage_alerted
     now gates it - recovery only notifies if the offline alert actually fired. Short blips are now silent,
@@ -205,7 +204,7 @@ automation:
     on every off-transition, so it cannot answer ''when did she last cry?'' — same reason input_datetime.nursery_last_woke
     exists alongside the nap sensor. Stamps RAW cry-on events, not the 10s qualified cry the monitor
     tablet will use to wake: a two-second squawk is still a cry and belongs in the record. Consumers:
-    the Nursery Monitor tablet dashboard (Nursery_Monitor_Tablet_Plan.md, phase N3) and the v3 Nursery
+    the Nursery Monitor tablet dashboard (docs/tablet-build.md, phase N3) and the v3 Nursery
     view.'
   triggers:
   - trigger: state
@@ -224,7 +223,7 @@ automation:
     for the same reason as automation.nursery_stamp_last_cry: binary_sensor.nursery_door_open''s own
     last_changed resets on every CLOSE, so while the door is shut it reports when it was shut — not
     when it was last opened, which is the question a parent is actually asking. Consumer: the nursery-monitor
-    kiosk dashboard (Nursery_Monitor_Tablet_Plan.md, phase N5). Mirrors the nursery_last_woke / nap-8
+    kiosk dashboard (docs/tablet-build.md, phase N5). Mirrors the nursery_last_woke / nap-8
     house pattern.'
   triggers:
   - trigger: state

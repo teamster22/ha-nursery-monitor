@@ -6,9 +6,9 @@ on. Dates are generalized; the numbers are real.
 > Read [../DISCLAIMER.md](../DISCLAIMER.md) first.
 
 
-**Status:** design settled, nothing built. Grounded in real history (3 days, pulled 2026‑07‑14) plus my answers.
+**Status:** this is the design doc, written before any of it was built. Grounded in 3 days of real history plus my answers.
 **Rev 2** — restructured around the night-bottle case, which turned out to simplify everything.
-Companions: `Nursery_Nap_Sensor_Brief.md`, `Nursery_Nap_Build_Guide.md`.
+Companion: [sensor-selection.md](sensor-selection.md). The load-cell build guide is deliberately not published — see the README.
 
 ---
 
@@ -33,10 +33,10 @@ That's a much smaller system than the brief imagined, and it's *because* of the 
 
 | | Morning | Afternoon | Night |
 |---|---|---|---|
-| Sat a July night | 09:40 → 11:26 | 14:33 → 16:26 | 19:35 → 07:38 |
-| Sun a July night | 09:47 → 11:55 | 14:37 → 16:30 | 19:35 → 07:23 |
-| Mon a July night | 09:38 → 11:47 | 14:24 → 16:27 | 19:27 → 06:46 |
-| Tue a July night | 09:04 → … | | |
+| Day 1 (Sat) | 09:40 → 11:26 | 14:33 → 16:26 | 19:35 → 07:38 |
+| Day 2 (Sun) | 09:47 → 11:55 | 14:37 → 16:30 | 19:35 → 07:23 |
+| Day 3 (Mon) | 09:38 → 11:47 | 14:24 → 16:27 | 19:27 → 06:46 |
+| Day 4 (Tue) | 09:04 → … | | |
 
 Across 72 hours the door was **never** closed-and-dark outside these windows. Otherwise it sits open for 2–3 hours at a stretch.
 
@@ -44,7 +44,7 @@ The brief argued door-closed is *permissive* evidence — equally consistent wit
 
 ### ② A sleeping toddler produces ZERO presence events
 
-Night of one overnight: presence cleared at 19:28:31 and did not fire again until **06:46:29 — 11 hours 18 minutes of silence**, with a sleeping child in the room the whole time.
+One night, day 3 into day 4: presence cleared at 19:28:31 and did not fire again until **06:46:29 — 11 hours 18 minutes of silence**, with a sleeping child in the room the whole time.
 
 This is the single most important measurement in the dataset. It means **`nursery_presence_sensor` firing = an adult, essentially always.** The brief's "adults only" claim isn't just vendor spec — it's verified on your instance, over your child, for eleven straight hours.
 
@@ -52,7 +52,7 @@ Which makes presence a clean, trustworthy trigger. And that is what makes the ne
 
 ### ③ The night bottle is fully visible — and it's in the dark
 
-Sun a July night, 04:18:
+Day 2, 04:18:
 
 ```
 04:18:05.4  presence  ON      ← adult enters
@@ -66,7 +66,7 @@ An 8-minute visit, 3 minutes of it with the door already closed. Exactly the sce
 
 ### ④ ⚠️ Anomaly: presence fired with the door shut
 
-Sat a July night, **21:22:35 → 21:25:09** — presence ON for 2m34s. The door was closed from 19:35:59 straight through to 04:18:05. Lights off. Nobody opened that door.
+Day 1, **21:22:35 → 21:25:09** — presence ON for 2m34s. The door was closed from 19:35:59 straight through to 04:18:05. Lights off. Nobody opened that door.
 
 Two possible explanations:
 
@@ -83,7 +83,7 @@ I can't fully resolve which explanation is right from 3 days. Shadow mode will.
 
 `idle` or `unavailable` for all 72 hours. Never played once. You said it's not a sleep signal; the data says it contributes *nothing*. Keep it only as a hard veto if it ever plays.
 
-*(Aside: it's flapping `unavailable`↔`idle` every ~10 min through a July night, despite the DHCP fix logged that day. Fleet-health issue, not a nap issue — but worth a look.)*
+*(Aside: it's flapping `unavailable`↔`idle` every ~10 min across the whole window. Fleet-health issue, not a nap issue — but worth a look.)*
 
 ### ⑥ Two corrections to the brief
 
@@ -158,10 +158,10 @@ Verify it against the real data:
 
 | Event | Machine does | Correct? |
 |---|---|---|
-| a July night 04:18 night bottle (door opens) | → `tending` → `settling` at 04:27:39 → `asleep` | ✅ |
-| a July night 21:22 phantom presence (no door event) | **nothing — stays `asleep`** | ✅ |
-| a July night 19:27 bedtime (door closes, presence clears 19:28:31) | → `settling` at 19:30:01 → `asleep` | ✅ |
-| a July night 06:46 morning (door opens, stays open) | → `tending` → `awake` at 06:48 | ✅ |
+| Day 2, 04:18 night bottle (door opens) | → `tending` → `settling` at 04:27:39 → `asleep` | ✅ |
+| Day 1, 21:22 phantom presence (no door event) | **nothing — stays `asleep`** | ✅ |
+| Day 3, 19:27 bedtime (door closes, presence clears 19:28:31) | → `settling` at 19:30:01 → `asleep` | ✅ |
+| Day 4, 06:46 morning (door opens, stays open) | → `tending` → `awake` at 06:48 | ✅ |
 
 Every transition in three days, handled by four rules.
 
@@ -182,13 +182,13 @@ confidence = base(how we entered)
 
 **Corroborations (+, small):** illuminance ≈ 0 · white noise on (decaying weight — see §5).
 
-**duration_plausibility** — see §3a. Rebuilt a weekday in July after I pushed back on the caps; the pushback surfaced two real bugs.
+**duration_plausibility** — see §3a. Rebuilt after I pushed back on the caps; the pushback surfaced two real bugs.
 
 ---
 
-## 3a. The max-duration decay (rebuilt a weekday in July)
+## 3a. The max-duration decay (rebuilt)
 
-I: *"Some naps may exceed 3 hrs, and some overnight sleeps may exceed 12 hrs."* He was right, and checking it against the real history turned up **three bugs**, one of them nasty.
+The pushback: *"Some naps may exceed 3 hrs, and some overnight sleeps may exceed 12 hrs."* That was right, and checking it against the real history turned up **three bugs**, one of them nasty.
 
 ### The principle I'd got wrong
 
@@ -205,7 +205,7 @@ Set the cap near the typical maximum and it fires during ordinary long sleeps �
 | Nap | 2h09m (129 min) | 180 min | tight — 40% headroom |
 | Night | **12h03m (723 min)** | **720 min** | **cap sits *below* real data** |
 
-**② The day/night gate read `input_boolean.nighttime` *now*, not at sleep start.** This is the nasty one. That boolean flipped off at **06:16** on a July night while she was still asleep (19:27 → 06:46). The cap snapped 720 → 180 min with 649 minutes already elapsed. **Confidence would have read `0` for the last 30 minutes of a completely normal night's sleep.**
+**② The day/night gate read `input_boolean.nighttime` *now*, not at sleep start.** This is the nasty one. That boolean flipped off at **06:16** on day 4 while she was still asleep (19:27 → 06:46). The cap snapped 720 → 180 min with 649 minutes already elapsed. **Confidence would have read `0` for the last 30 minutes of a completely normal night's sleep.**
 
 **③ A declared nap (base 95) never decayed at all.** A stale manual override would have sat at 95 forever if the door sensor ever dropped its wake event.
 
@@ -341,7 +341,7 @@ This is strictly better because it's **generic**: it catches the stuck-state cas
 |---|---|---|
 | 1 | **Data hygiene** | Remove the dead `binary_sensor.nursery_door_is_open`. Make every automation treat `unavailable` as **unknown**, never as closed/off — this is the most likely source of a phantom nap. |
 | 2 | **Smoothed illuminance** | Raw lux swings 400→680 within seconds. Add a `statistics` mean-over-5-min helper (per the project's "prefer smoothed sensors" rule) and use **that**, not `light.nursery_lights` — the light group goes `unavailable` frequently, and the illuminance sensor rides the *same device* as presence, so it's one less integration to fail. |
-| 3 | **Ground truth** | Bind `hold_top_left` → "she's down", `hold_bottom_left` → "she's up". *(Baby Buddy was removed a weekday in July — the old `bb_sleep_helper` fire is gone and must not be re-added.)* |
+| 3 | **Ground truth** | Bind `hold_top_left` → "she's down", `hold_bottom_left` → "she's up". *(Baby Buddy was removed — the old `bb_sleep_helper` fire is gone and must not be re-added.)* |
 | 4 | **State machine** | `input_select.nursery_state`, `input_datetime.nursery_sleep_started`, `input_number.nursery_confidence` |
 | 5 | **Four transition automations** | Per §2 |
 | 6 | **Shadow mode, 2 weeks — drives nothing** | Log inferred state + confidence + button truth + all inputs |

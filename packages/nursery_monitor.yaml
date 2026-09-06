@@ -21,7 +21,7 @@ automation:
     that to the hardware — so the on-screen controls moved a number and changed no sound. Mute = helper
     0 = volume_level 0. Note Fully does NOT report volume back to HA, so the helper is what HA believes;
     the tablet''s physical volume keys change the device directly and will drift from it (accepted —
-    Nursery_Monitor_Tablet_Plan.md §3.8). mode: restart so a rapid run of taps only applies the final
+    docs/tablet-build.md §3.8). mode: restart so a rapid run of taps only applies the final
     value.'
   triggers:
   - trigger: state
@@ -43,7 +43,7 @@ automation:
     \ on a transition it actually OBSERVES. If the boolean is already ON when this automation is enabled,\
     \ reloaded, or when HA restarts, path 1 never fires and the control bar is STUCK ON FOREVER — a\
     \ second tap cannot rescue it either, because on -> on is not a state change. That exact wedge happened\
-    \ July 2026 after the automation was briefly disabled to capture a screenshot.\n\nThe shared 12s\
+    \ at the time after the automation was briefly disabled to capture a screenshot.\n\nThe shared 12s\
     \ condition means the watchdog can never close the bar early."
   triggers:
   - trigger: state
@@ -68,7 +68,7 @@ automation:
   mode: restart
 - alias: Nursery Monitor — Qualified cry
   description: "THE CENTREPIECE. Frigate hears sustained crying -> wake the tablet, play the alert chime,\
-    \ hold the panel awake.\n\n=== HARD OFF SWITCH (I, 2026-08-02) ===\nThis automation is toggled\
+    \ hold the panel awake.\n\n=== HARD OFF SWITCH ===\nThis automation is toggled\
     \ directly by the 'Tablet Alert Automation' tile on the v3 Nursery view (automation.toggle).\n⚠️\
     \ UNLIKE THE SNOOZE, TURNING IT OFF HAS NO EXPIRY. It stays off until someone switches it back on\
     \ — which is precisely the 'forget and then miss a cry' failure the snooze machinery was built to\
@@ -173,7 +173,7 @@ automation:
     to do.
 
 
-    === SETTLING HOLD-OPEN (I, July 2026) ===
+    === SETTLING HOLD-OPEN (I, at the time) ===
 
     ''The tablet should not go to soft-standby automatically while the nursery is in settling.'' Settling
     is the window just after the door closes when she is going down but is not yet asleep — precisely
@@ -239,7 +239,7 @@ automation:
   mode: single
 - alias: Nursery Monitor — Follow hardware power button
   description: 'Keeps HA''s state machine in step with the PHYSICAL power button, so pressing it converges
-    on exactly the same state as using the dashboard''s soft Sleep/Wake (I, July 2026).
+    on exactly the same state as using the dashboard''s soft Sleep/Wake (I, at the time).
 
 
     WHY THIS IS NEEDED: Android reserves KEYCODE_POWER at the system level — no app, Fully included,
@@ -547,7 +547,7 @@ automation:
   max_exceeded: silent
 - alias: Nursery Monitor — Sleep when nursery empty
   description: 'Sends the tablet to DORMANT when the nursery is empty with the door open and she is
-    up — i.e. she has been taken out of the room and there is nothing left to monitor (I, July 2026).
+    up — i.e. she has been taken out of the room and there is nothing left to monitor (I, at the time).
 
 
     WHAT IT ADDS OVER THE INACTIVITY TIMER: `automation.nursery_monitor_sleep_on_idle` already darkens
@@ -624,7 +624,7 @@ automation:
   description: "Pushes input_number.nursery_monitor_brightness to the tablet's actual screen brightness.\
     \ Exact sibling of automation.nursery_monitor_mirror_volume_to_tablet, and it exists for the same\
     \ architectural reason: the UI writes a HELPER, and this carries the helper to the hardware.\n\n\
-    === WHY THIS WAS ADDED July 2026: THE BRIGHTNESS BUTTONS DID NOT WORK ===\nArt: 'I don't think\
+    === WHY THIS WAS ADDED at the time: THE BRIGHTNESS BUTTONS DID NOT WORK ===\nArt: 'I don't think\
     \ the brightness soft controls on the tablet are working.' They were half-working, in a way that\
     \ felt completely dead.\n\nThe old scripts did a READ-MODIFY-WRITE directly against the Fully number\
     \ entity:\n    value: {{ [ (states('number...screen_brightness') | int(128)) - 30, 0 ] | max }}\n\
@@ -661,7 +661,7 @@ automation:
     \ an adult is in the room, and restores the user's volume when they leave.\n\nArt's principle: 'there\
     \ should not be a device squawking the audio of the nursery if an adult is already present soothing\
     \ the crying child.' Someone standing over the crib does not need that same crib relayed through\
-    \ a speaker in the next room.\n\n=== ⚠️ THREE MUTE TRIGGERS, NOT ONE (I, 2026-08-02) ===\n'When\
+    \ a speaker in the next room.\n\n=== ⚠️ THREE MUTE TRIGGERS, NOT ONE ===\n'When\
     \ the nursery presence detector detects an adult in the room OR if the door is opened, the tablet\
     \ should IMMEDIATELY stop chiming and mute.'\n  • binary_sensor.nursery_adult_present  — the composed\
     \ signal (tending OR door OR presence+person)\n  • binary_sensor.nursery_door_open      — DIRECT,\
@@ -766,7 +766,7 @@ script:
       of script.nursery_monitor_brightness_down.
 
 
-      ⚠️ REWRITTEN July 2026 — IT WRITES THE HELPER, NOT THE DEVICE. Do not ''simplify'' it back to
+      ⚠️ REWRITTEN at the time — IT WRITES THE HELPER, NOT THE DEVICE. Do not ''simplify'' it back to
       number.set_value on the Fully entity.
 
 
@@ -803,7 +803,7 @@ script:
     description: 'Steps the tablet''s brightness DOWN by 30 (Fully scale 0-255), clamped at 0.
 
 
-      ⚠️ REWRITTEN July 2026 — IT WRITES THE HELPER, NOT THE DEVICE. Do not ''simplify'' it back to
+      ⚠️ REWRITTEN at the time — IT WRITES THE HELPER, NOT THE DEVICE. Do not ''simplify'' it back to
       number.set_value on the Fully entity; that is what was broken.
 
 
@@ -985,7 +985,7 @@ script:
       \ event's response visibly slower at exactly the moment it matters.\nThe cost is that the panel\
       \ may faintly glow at brightness 0 (Android brightness 0 is often 'dimmest', not off) — the black\
       \ overlay covers that. §3.3 says revisit true screen-off ONLY if it visibly glows on this unit.\n\
-      \n=== BRIGHTNESS GOES THROUGH THE HELPER, NOT THE DEVICE (changed July 2026) ===\nSets input_number.nursery_monitor_brightness\
+      \n=== BRIGHTNESS GOES THROUGH THE HELPER, NOT THE DEVICE (changed at the time) ===\nSets input_number.nursery_monitor_brightness\
       \ to 0; automation.nursery_monitor_mirror_brightness_to_tablet performs the device write. Do NOT\
       \ restore a direct number.set_value here — the Fully number entity round-trips in ~20-30s, and\
       \ having both this script and the dashboard's Dimmer/Brighter buttons write it directly made the\
@@ -1028,7 +1028,7 @@ script:
       a sofa.
 
 
-      ⚠️ 15s, NOT 45s — shortened July 2026 after I tested it: ''way too long. I can retrigger it
+      ⚠️ 15s, NOT 45s — shortened at the time after I tested it: ''way too long. I can retrigger it
       if necessary to find it.'' The original three-pass loop was built on the assumption that longer
       = easier to locate; in practice one 13.14s chime is enough to get a bearing, and an over-long
       alarm you cannot stop is worse than one you re-tap. **If you lengthen this, add a way to CANCEL

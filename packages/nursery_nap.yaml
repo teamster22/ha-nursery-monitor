@@ -26,7 +26,7 @@
 automation:
 - alias: Nursery Nap 1 — Visit opens (door opened)
   description: 'SHADOW MODE. Door-open is the entry trigger, NOT presence: a closed door cannot open
-    itself, so this is immune to mmWave bleed-through (see Nursery_Nap_Software_Approach.md 1-4). Covers
+    itself, so this is immune to mmWave bleed-through (see docs/nap-detection.md 1-4). Covers
     bedtime, nap, night bottle and morning pickup alike.'
   triggers:
   - trigger: state
@@ -43,7 +43,7 @@ automation:
   mode: single
 - alias: Nursery Nap 2 — Visit closes → settling
   description: 'SHADOW MODE. THE key transition: presence clears + door closed + dark = she''s down.
-    Identical for a bedtime put-down and a 4am re-settle. **Dark check fixed a weekday in July:** was smoothed-only,
+    Identical for a bedtime put-down and a 4am re-settle. **Dark check fixed later:** was smoothed-only,
     but the 2-min filter FREEZES at a stale value when the raw light sensor goes silent in the dark
     (froze at 37 lx while the room was actually 0 lx → blocked the 2pm put-down). Now dark = RAW < 30
     OR smoothed < 30: raw holds at the true 0 when it freezes, and raw''s noise lives at high values
@@ -87,8 +87,7 @@ automation:
       timestamp: '{{ as_timestamp(now()) }}'
   mode: single
 - alias: Nursery Nap 3 — Settling → asleep
-  description: 'SHADOW MODE. Promotes settling → asleep after 8 min shut+quiet. RESTART-SAFE (fixed
-    a weekday in July): the bare `state for: 8min` trigger is orphaned by a restart — on reboot the state restores
+  description: 'SHADOW MODE. Promotes settling → asleep after 8 min shut+quiet. RESTART-SAFE (fixed later): the bare `state for: 8min` trigger is orphaned by a restart — on reboot the state restores
     to ''settling'' with no fresh transition edge, so the 8-min clock never starts and the machine sticks.
     Fix: elapsed time is measured from input_datetime.nursery_sleep_started (survives restarts), and
     two extra triggers (homeassistant start + a 2-min poll) re-check it, so a reboot or reload self-heals

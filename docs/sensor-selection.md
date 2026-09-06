@@ -240,7 +240,7 @@ button:
 | `media_player.sonos_nursery` | ⭐ **positive** signal (white noise / lullaby persists through the nap) |
 | `event.nursery_wall_remote_scene_001..004` | ⭐ Aeotec WallMote Quad — **4 free buttons**; dedicate one to nap start/stop = **ground truth** |
 | `automation.zwavejs_aeotec_wallmote_quad_scene_controller` | "Nursery Hub Buttons" — existing handler for the above |
-| ~~`input_button.bb_sleep_helper`~~ | **REMOVED a weekday in July — Baby Buddy deprecated and fully uninstalled.** Do not wire it. (It was the only BB sleep hook; BB never exposed a sleep-state sensor.) |
+| ~~`input_button.bb_sleep_helper`~~ | **REMOVED later — Baby Buddy deprecated and fully uninstalled.** Do not wire it. (It was the only BB sleep hook; BB never exposed a sleep-state sensor.) |
 | `binary_sensor.nursery_window_opening` | context |
 | `binary_sensor.magic_areas_presence_tracking_nursery_area_state` | Magic Areas area rollup |
 | `climate.nursery_minisplit` | context |

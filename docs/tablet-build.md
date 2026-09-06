@@ -136,8 +136,8 @@ to myself, but it has the reasoning behind most of the decisions above.
 **Status:** **build in progress — N2, N3, N4, N5 complete.** One NUC edit applied (the `nursery_kiosk` audio stream, §5). `HA_Reference.md` reconciled each phase.
 **Device:** Lenovo Tab One (8.7" 1340×800 IPS · MediaTek Helio G85 · 4 GB / 64 GB · Android 14→15 · Wi-Fi 5 · 5,100 mAh · USB-C)
 **Target behaviour:** replicate the **Eufy SpaceView E10** parent unit (§3).
-**Date:** July 2026 · **Rev 5** — **N1 locked to Device Owner provisioning with no Google account (§8).** Power/volume button behaviour settled (§3.8), and one earlier overclaim about the power menu corrected there.
-**Companions:** `Nursery_Nap_Software_Approach.md`, `NUC_ACCESS_SETUP.md` (§4a protocol), `NOTIFY_GROUPS.md`.
+**Date:** that month · **Rev 5** — **N1 locked to Device Owner provisioning with no Google account (§8).** Power/volume button behaviour settled (§3.8), and one earlier overclaim about the power menu corrected there.
+**Companion:** [nap-detection.md](nap-detection.md).
 
 **Locked decisions:**
 
@@ -233,14 +233,14 @@ No walk-up motion detection (your call) — which means **camera and microphone 
 
 **Build it as ONE pre-rendered audio file.** Do not implement the pattern as a script looping `fully_kiosk` play-media calls — that puts eight network round-trips and a `delay:` loop between a crying baby and the sound that tells you about it. One file, one call, timing baked in and identical every time.
 
-**✅ CHOSEN July 2026 — "rising bell" (variant A).** Two-note rising bell, **A5 (880 Hz) → E6 (1318.5 Hz)**, sine fundamental plus 2nd/3rd harmonics at 0.35/0.12, exponential decay envelope with a 6 ms squared attack ramp so there is no click. 55 ms between the two notes, 3.0 s between cycles, 4 cycles, **8 tones, 13.14 s total**. Warm and musical rather than harsh — reads as "attention," not "error."
+**✅ CHOSEN that month — "rising bell" (variant A).** Two-note rising bell, **A5 (880 Hz) → E6 (1318.5 Hz)**, sine fundamental plus 2nd/3rd harmonics at 0.35/0.12, exponential decay envelope with a 6 ms squared attack ramp so there is no click. 55 ms between the two notes, 3.0 s between cycles, 4 cycles, **8 tones, 13.14 s total**. Warm and musical rather than harsh — reads as "attention," not "error."
 
 Files live in the project folder at `nursery_monitor/`:
 - `nursery_alert_chime.mp3` — 206 KB, 128 kbps mono. **The one to deploy.**
 - `nursery_alert_chime.wav` — 1.2 MB, 44.1 kHz 16-bit mono. Fallback if Fully's player dislikes the MP3.
 - `chime_generator.py` — the numpy generator. Keep it: re-render with different pitch, spacing, or cycle count in one edit rather than starting over.
 
-**⬜ Deployment is a manual step for I.** `ha_write_file` is **text-only**, so the connector cannot push a binary MP3 — writing it as text corrupts the file. Upload via the File editor to **`www/nursery_monitor/nursery_alert_chime.mp3`** (same route used for the 8 Flux wallpapers), which serves it at:
+**⬜ Deployment is a manual step.** `ha_write_file` is **text-only**, so the connector cannot push a binary MP3 — writing it as text corrupts the file. Upload via the File editor to **`www/nursery_monitor/nursery_alert_chime.mp3`** (same route used for the 8 Flux wallpapers), which serves it at:
 
 ```
 /local/nursery_monitor/nursery_alert_chime.mp3
@@ -255,7 +255,7 @@ Two details:
 
 Confirmed: **the tone plays on the tablet only. Nothing sounds in the nursery.**
 
-### 3.6 Latency budget — **MEASURED July 2026, not estimated**
+### 3.6 Latency budget — **MEASURED that month, not estimated**
 
 | Stage | Estimated | **Measured** |
 |---|---|---|
@@ -267,9 +267,9 @@ Confirmed: **the tone plays on the tablet only. Nothing sounds in the nursery.**
 
 **Recommendation arising from the measurement: drop the qualifier from 10 s to 5 s.** Frigate's detector is already not a hair trigger — it needs 7–10 s of sustained crying just to assert the sensor, which is itself a duration filter. Stacking a 10 s HA qualifier on top double-charges for the same protection and pushes cry-to-wake past 20 s. At 5 s (matching the existing `automation.nursery_baby_crying_critical`) total wake lands at ~12–15 s, which is what the plan promised. Revisit during the N7 bake-in if false wakes appear.
 
-### 3.9 Measured detector behaviour — the two July 2026 tests
+### 3.9 Measured detector behaviour — the two that month tests
 
-Both tests played recorded crying in an empty nursery at crib distance. **This was the first time `binary_sensor.nursery_crying_sound` had ever fired** — before 13:36 on July 2026 its entire history was `unavailable` → `off`.
+Both tests played recorded crying in an empty nursery at crib distance. **This was the first time `binary_sensor.nursery_crying_sound` had ever fired** — before 13:36 on that month its entire history was `unavailable` → `off`.
 
 | | Test 1 | Test 2 |
 |---|---|---|
@@ -344,7 +344,7 @@ From your hand, the power button now means "put the monitor to sleep / wake it u
 
 Both are legitimate. The ☾ button is the responsive one and should be the habit; the power button is the "I'm putting this in a drawer" one. **Nothing breaks if you use either** — which is the point.
 
-**⚠️ Correction to the earlier claim in this document.** I said Device Owner provisioning "removes the power menu entirely." Fully's own documentation is blunter: *"a very long press on the power button will still cause the most devices to switch off."* Provisioning **reduces** accidental shutdown — it doesn't eliminate it. The real backstop is `automation.nursery_monitor_offline_alert` (§9.2), which catches an off tablet within 5 minutes regardless of how it got there. Treat that automation as load-bearing, not a nicety.
+**⚠️ Correction to an earlier claim in this document.** I said Device Owner provisioning "removes the power menu entirely." Fully's own documentation is blunter: *"a very long press on the power button will still cause the most devices to switch off."* Provisioning **reduces** accidental shutdown — it doesn't eliminate it. The real backstop is `automation.nursery_monitor_offline_alert` (§9.2), which catches an off tablet within 5 minutes regardless of how it got there. Treat that automation as load-bearing, not a nicety.
 
 ---
 
@@ -367,11 +367,11 @@ Retained for the record — the two rejected options:
 
 **⚠️ This section previously said "no NUC edit required." That was wrong, and the correction is worth understanding.**
 
-The camera emits **AAC**; WebRTC carries only **OPUS, PCMU, or PCMA**. Early testing showed audio *playing*, so N2 was closed as "go2rtc transcodes automatically, nothing to do." It does transcode automatically — **but it spawns a separate ffmpeg transcode for every connecting viewer.** Measured July 2026 during a live diagnosis: three concurrent transcodes (Firefox, iOS app, external Safari) and a **2.24 s** WebRTC handshake. The result was choppy video and intermittent audio on every nursery card.
+The camera emits **AAC**; WebRTC carries only **OPUS, PCMU, or PCMA**. Early testing showed audio *playing*, so N2 was closed as "go2rtc transcodes automatically, nothing to do." It does transcode automatically — **but it spawns a separate ffmpeg transcode for every connecting viewer.** Measured that month during a live diagnosis: three concurrent transcodes (Firefox, iOS app, external Safari) and a **2.24 s** WebRTC handshake. The result was choppy video and intermittent audio on every nursery card.
 
 **"It plays" and "it plays reliably" are different tests. Only the second one matters for a baby monitor.**
 
-**Applied July 2026** — the §5.2 contingency became the fix:
+**Applied that month** — the §5.2 contingency became the fix:
 
 ```yaml
 # go2rtc: streams:  — LIVE
@@ -441,14 +441,14 @@ The `webrtc: candidates:` block annotated *"WebRTC is required for two-way talk"
 4. **Provision Fully as Device Owner.** Two documented methods: the **QR method** (tap the wizard's welcome screen six times to open the QR reader — no computer needed) or **ADB** (`adb shell dpm set-device-owner ...`). **Read the exact QR payload / receiver class off Fully's provisioning page at build time — do not guess it.** A wrong receiver name fails at exactly the moment you are standing over a factory-reset tablet.
 5. **Buy and apply the PLUS licence**, then enable **Remote Admin** with a password.
 
-   ⚠️ **Enabling Remote Admin does NOT start the service — Fully must be restarted.** Observed July 2026: the toggle was set and the password entered, yet nothing on the LAN answered on port 2323, and Fully Cloud's own remote view reported `Remote Admin service running: false` while successfully relaying to the device (so: network fine, app running, service simply not started). **Fix: Fully menu → Restart App.** Port 2323 came up immediately after.
+   ⚠️ **Enabling Remote Admin does NOT start the service — Fully must be restarted.** Observed that month: the toggle was set and the password entered, yet nothing on the LAN answered on port 2323, and Fully Cloud's own remote view reported `Remote Admin service running: false` while successfully relaying to the device (so: network fine, app running, service simply not started). **Fix: Fully menu → Restart App.** Port 2323 came up immediately after.
 
    **Two diagnostics worth reusing:** an unlicensed Fully shows a **watermark** on screen — that's the fast way to tell a licence problem from a service-start problem, since both present as Remote Admin being unreachable. And ping jitter is a reliable sleep indicator: the tablet read 5–46 ms with 16 ms mdev while dozing versus **2.9–7.3 ms with 1.5 ms mdev** awake.
 6. **Turn OS auto-update off** now that you are on 15. A monitor that reboots itself for an update is a monitor that was off when you needed it.
 7. **Android settings:** Developer options → **Stay awake while charging**. Auto-brightness **off** (HA owns brightness). Screen timeout **never**. Do Not Disturb **on, always**. Lock screen **none** — a swipe-to-unlock is a 3 a.m. tax. Auto-rotate **off**, landscape. All notification sounds **off**. **Exempt Fully from battery optimization / adaptive battery.**
 8. **Network:** 5 GHz, static DHCP reservation on the Deco (by MAC, so it follows the tablet room to room).
 
-   **✅ ASSIGNED July 2026 — `<TABLET_IP>`, MAC `AA:BB:CC:DD:EE:FF`, reserved on the Deco.**
+   **✅ ASSIGNED that month — `<TABLET_IP>`, MAC `AA:BB:CC:DD:EE:FF`, reserved on the Deco.**
 
    ⚠️ **Turn OFF Android's per-network MAC randomisation before reserving** (Wi-Fi → SSID → Privacy → **Use device MAC**). The tablet first joined as `AA:B7:…`, then as `96:25:…` — both randomised, both would have broken the reservation on the next factory reset or network re-join. **Quick check: if the second hex digit of the first octet is 2, 6, A, or E, the address is software-generated, not hardware.** `98:2B:A6` (digit `8`) is a real vendor OUI, so this one is stable.
 9. **Add the Fully Kiosk integration in HA** — device IP + Remote Admin password.
@@ -472,7 +472,7 @@ The `webrtc: candidates:` block annotated *"WebRTC is required for two-way talk"
 
 ### ⚠️ Four settings to deliberately leave alone
 
-1. **~~"Shutdown on Power Disconnect" → 0~~ — ⚠️ CORRECTION: this setting is under *Root Settings (PLUS, rooted devices only)* and does not exist on this tablet.** It was flagged as the most dangerous default in an earlier revision; on a non-rooted device it cannot fire, so it is a non-issue. **The setting that DOES apply is "Sleep on Power Disconnect"** (Power Settings) — *hibernate device when power cord is unplugged*. Same failure in a milder form, and on a tablet that is unplugged by design it must be **OFF**. I turned it off July 2026. Don't go hunting for the root-only one.
+1. **~~"Shutdown on Power Disconnect" → 0~~ — ⚠️ CORRECTION: this setting is under *Root Settings (PLUS, rooted devices only)* and does not exist on this tablet.** It was flagged as the most dangerous default in an earlier revision; on a non-rooted device it cannot fire, so it is a non-issue. **The setting that DOES apply is "Sleep on Power Disconnect"** (Power Settings) — *hibernate device when power cord is unplugged*. Same failure in a milder form, and on a tablet that is unplugged by design it must be **OFF**. I turned it off that month. Don't go hunting for the root-only one.
 2. **"Disable Hardware Power Button" → OFF.** Vendor warns it can render a device inoperable, and you need reboot access on a floating device (§3.8).
 3. **"Disable Volume Buttons" → OFF.** The volume keys are a feature here (§3.8).
 4. **"Disable ADB" → OFF.** It is the recovery path if kiosk lockdown goes wrong. Disabling it on a provisioned tablet can leave you with no way in short of another reset.
@@ -513,12 +513,12 @@ The nursery camera's `hwaccel_args: []` (software decode) is **load-bearing** �
 
 | Phase | Work | Est. |
 |---|---|---|
-| **N1** | ✅ **COMPLETE July 2026.** OS update → factory reset → Device Owner provisioning (no Google account) → PLUS licence → Fully config → HA integration (33 entities). Final three settings closed out July 2026: **Start URL** (verified live — `sensor...current_page` reads `http://homeassistant.local:8123/nursery-monitor/monitor`, `foreground_app` = `com.fullykiosk.emm`), **Android Display size**, **Battery → Unrestricted**. ⚠️ **Still OFF and deliberate-or-not-yet-decided:** `binary_sensor...kiosk_mode`, `switch...kiosk_lock`, `binary_sensor...device_admin`. | done |
+| **N1** | ✅ **COMPLETE that month.** OS update → factory reset → Device Owner provisioning (no Google account) → PLUS licence → Fully config → HA integration (33 entities). Final three settings closed out that month: **Start URL** (verified live — `sensor...current_page` reads `http://homeassistant.local:8123/nursery-monitor/monitor`, `foreground_app` = `com.fullykiosk.emm`), **Android Display size**, **Battery → Unrestricted**. ⚠️ **Still OFF and deliberate-or-not-yet-decided:** `binary_sensor...kiosk_mode`, `switch...kiosk_lock`, `binary_sensor...device_admin`. | done |
 | **N2** | ✅ **COMPLETE.** Audio confirmed on `nursery_sub`. No NUC edit needed (§5). | done |
 | **N3** | ✅ **COMPLETE.** `input_datetime.nursery_last_cry` + `automation.nursery_stamp_last_cry` live, area/label/category applied, `HA_Reference.md` reconciled 2,059 → 2,084, Repairs 0. Built as input_datetime + stamping automation (the `nursery_last_woke` house pattern), **not** the trigger-template sensor originally proposed — trigger templates need YAML. | done |
 | **N4** | ✅ **Helpers COMPLETE** — area `Floating Devices`, label `kiosk`, state flag, 2 timers, 3 input_numbers; `HA_Reference.md` reconciled 2,084 → 2,090, Repairs 0. **Chime: 3 candidates generated** (`nursery_monitor/chime{A,B,C}*.mp3`) awaiting my pick. **Wake/sleep scripts deferred to N1** — they all end in `fully_kiosk` calls. | mostly done |
 | **N5** | ✅ **COMPLETE.** Dashboard `nursery-monitor` + theme `nursery_monitor.yaml` shipped and render-verified at **both** 893×533 and 1340×800. Dormant overlay confirmed full-viewport black + tappable; both alert banners confirmed via a temp view (created, shot, deleted). Three frontend lessons banked in §6.1. `HA_Reference.md` reconciled 2,090 → 2,093, Repairs 0. | done |
-| **N6** | ✅ **COMPLETE July 2026.** 2 scripts + 6 automations live, area `Floating Devices`, labels `kiosk`+`baby`, category *Nursery Monitor*, icons set. `HA_Reference.md` reconciled 2,163 → 2,171, Repairs clean. **Verified by template evaluation only — nothing has been RUN.** See §7.36 for the six design decisions and the outstanding live tests. | done |
+| **N6** | ✅ **COMPLETE that month.** 2 scripts + 6 automations live, area `Floating Devices`, labels `kiosk`+`baby`, category *Nursery Monitor*, icons set. `HA_Reference.md` reconciled 2,163 → 2,171, Repairs clean. **Verified by template evaluation only — nothing has been RUN.** See §7.36 for the six design decisions and the outstanding live tests. | done |
 | **N7** | **1-week bake-in**: tune the 10 s qualifier and `min_volume`, measure battery life, decide on battery-saver mode. Then regenerate `HA_Reference.md` per the CLAUDE.md rule. | — |
 
 N4 and N5 don't need the tablet and can run before N1. **Do not start N1 casually** — step 3 (skip every account) is unforgiving, and getting it wrong means another factory reset.
@@ -529,7 +529,7 @@ N4 and N5 don't need the tablet and can run before N1. **Do not start N1 casuall
 
 ### ⚠️ 11.0 REVERT BEFORE CALLING THIS DONE — temporary alert audience
 
-**Set July 2026 at my request, for the duration of the build-out only.** Both baby-monitor alert automations were narrowed to my phone so setup testing doesn't repeatedly blast my wife with critical alerts:
+**Set that month at my request, for the duration of the build-out only.** Both baby-monitor alert automations were narrowed to my phone so setup testing doesn't repeatedly blast my wife with critical alerts:
 
 | Automation | Was | Now (temporary) |
 |---|---|---|
@@ -538,9 +538,9 @@ N4 and N5 don't need the tablet and can run before N1. **Do not start N1 casuall
 
 **This is a safety regression while it stands** — the cry alert and the monitor-is-dead alert currently reach exactly one phone. If that phone is silenced, face-down, or out of the house, nobody is told. Acceptable during active setup; **not** acceptable as the resting state.
 
-**⏸️ DECIDED July 2026 (I): HOLD the phone-only audience through the N7 one-week bake-in, then revert.** Rationale: N7 exists to tune the cry qualifier and `min_volume`, which means deliberate test fires at unpredictable hours; routing those to the full group would wake my wife repeatedly for non-events. **This makes the revert an explicit N7 EXIT CRITERION, not an N6 task — N7 is not complete until the audience is restored.** The safety regression below stands until then, knowingly.
+**⏸️ DECIDED: HOLD the phone-only audience through the N7 one-week bake-in, then revert.** Rationale: N7 exists to tune the cry qualifier and `min_volume`, which means deliberate test fires at unpredictable hours; routing those to the full group would wake my wife repeatedly for non-events. **This makes the revert an explicit N7 EXIT CRITERION, not an N6 task — N7 is not complete until the audience is restored.** The safety regression below stands until then, knowingly.
 
-**Revert when the tablet is stable and complete.** Both automations carry a `⚠️ TEMPORARY AUDIENCE` banner at the top of their description naming the original target, so the correct value is recoverable from the instance itself even if this document is lost. The N6 automations (`_offline_alert`, `_low_battery`) are specced against `notify.parents` and should be reviewed at the same time — a *tablet* battery warning is genuinely I-only, but a *monitor is dead* alert is not.
+**Revert when the tablet is stable and complete.** Both automations carry a `⚠️ TEMPORARY AUDIENCE` banner at the top of their description naming the original target, so the correct value is recoverable from the instance itself even if this document is lost. The N6 automations (`_offline_alert`, `_low_battery`) are specced against `notify.parents` and should be reviewed at the same time — a *tablet* battery warning is genuinely for me only, but a *monitor is dead* alert is not.
 
 ---
 

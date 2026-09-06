@@ -5,8 +5,8 @@ What commercial baby monitors put on screen, and what I copied.
 > Read [../DISCLAIMER.md](../DISCLAIMER.md) first.
 
 
-**Purpose:** inspiration and a decision framework for laying out the `nursery-monitor` kiosk. Written July 2026 after a long build session that produced a working-but-unsatisfying layout.
-**Companion:** `Nursery_Monitor_Tablet_Plan.md` (the build), `backups/nursery-monitor_backup_2026-07-28_pre-optionC.json` (current rollback point).
+**Purpose:** inspiration and a decision framework for laying out the `nursery-monitor` kiosk. Written that month after a long build session that produced a working-but-unsatisfying layout.
+**Companion:** [tablet-build.md](tablet-build.md) (the build).
 
 ---
 
@@ -123,7 +123,7 @@ Video edge to edge. **Nothing else, ever**, except the two red exceptions. All s
 
 ---
 
-## 6. Open question for I
+## 6. Open question
 
 The single biggest decision is **whether climate (temp/humidity/CO₂) needs to be visible without interaction.**
 
