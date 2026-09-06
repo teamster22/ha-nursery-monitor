@@ -2,9 +2,14 @@
 
 A baby monitor built out of Home Assistant, Frigate, and an inexpensive Android tablet. It
 infers whether the child is asleep from the door and a presence sensor, raises a
-critical alert when she cries, and wakes the tablet in under a second. 
-The tablet is free-floating, and is handled the same way as a dumb commodity baby monitor would handle the display. \
-Locked down and shows only important baby-care information. 
+critical alert when she cries, and wakes the tablet in under a second.
+The tablet is free-floating, and is handled the same way as a dumb commodity baby monitor would handle the display.
+Locked down and shows only important baby-care information.
+
+Not wall mounting it was deliberate. A parent unit that sits in a bracket is stuck
+in whatever room you screwed the bracket into, and the whole point of a parent unit
+is that it goes where the parent goes. Mine gets carried to the kitchen, the couch,
+or handed to a babysitter for the evening.
 
 It has been running in my house since July 2026.
 

@@ -4,6 +4,12 @@ An Android tablet running Fully Kiosk Browser, showing one Home
 Assistant dashboard view with the nursery camera on it. The goal was Eufy E10
 parity: press a button, see the room, instantly.
 
+It is not wall mounted, and that was deliberate. A parent unit belongs wherever the
+parent is, so this one floats: kitchen counter, arm of the couch, handed to a
+babysitter on the way out. Everything below follows from that, especially the
+battery handling in §3.7 and the low-battery alert in §7.3, which only matter
+because the thing spends its life unplugged.
+
 > Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
 > device, and an LLM wrote essentially all of the code here. I'm not a software
 > engineer, so read the config yourself before you run it.

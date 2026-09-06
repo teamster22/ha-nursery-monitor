@@ -1,7 +1,7 @@
 # ============================================================================
 # ha-nursery-monitor — tablet parent unit
 #
-# Turns a wall-mounted Fully Kiosk tablet into a baby-monitor parent unit that
+# Turns a free-floating Fully Kiosk tablet into a baby-monitor parent unit that
 # wakes in under a second.
 #
 # The trick: DORMANT IS NOT SCREEN-OFF. Dormant = brightness 0 + volume 0 over
