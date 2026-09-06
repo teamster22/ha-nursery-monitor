@@ -1,6 +1,6 @@
 # The tablet parent unit
 
-A wall-mounted Android tablet running Fully Kiosk Browser, showing one Home
+An Android tablet running Fully Kiosk Browser, showing one Home
 Assistant dashboard view with the nursery camera on it. The goal was Eufy E10
 parity: press a button, see the room, instantly.
 
