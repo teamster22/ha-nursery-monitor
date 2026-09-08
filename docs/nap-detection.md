@@ -12,7 +12,22 @@ The superseded original brief is in [build-journal/sensor-selection.md](build-jo
 
 ---
 
-## 0. The headline
+## 0. Read this first — does this apply to your house?
+
+**The load-bearing assumption: the nursery door is closed when, and only when, she
+is put down.** We don't close that door otherwise. That's what makes a door-close an
+*artifact of a deliberate human act* rather than a passive condition, and it's why
+this works without a wearable or a mat.
+
+If your household closes the nursery door at other times, or leaves it open during
+sleep, this state machine will not work for you, and no amount of threshold tuning
+will rescue it. That is worth knowing now rather than after buying sensors.
+
+The second assumption, which is more likely to be universal: **a sleeping child
+produces zero presence events.** Section 1② has the measurement: eleven hours and eighteen
+minutes of presence silence with a child in the room the whole time.
+
+If both hold, keep reading.
 
 **Two entities do essentially all the work:**
 

@@ -10,4 +10,6 @@ These are published because the reasoning behind a decision is often more useful
 | [sensor-selection.md](sensor-selection.md) | The first brief on what to sense. Includes a full load-cell BOM and mechanical build. | **Specs hardware that was never built.** Do not build from it. |
 | [layout-research.md](layout-research.md) | What commercial baby monitors put on screen, and three layout options. Option A shipped. | Design exploration, pre-build |
 
-If you're implementing this, close this directory and go back to [../../README.md](../../README.md).
+If you're implementing this, close this directory and start at
+[../nap-detection.md](../nap-detection.md) section 0, which tells you in two
+paragraphs whether this design fits your house.

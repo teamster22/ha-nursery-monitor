@@ -150,20 +150,29 @@ dead sensor battery, and I had to rebuild it once after setting the caps near th
 typical maximum, which fired the decay during ordinary long sleeps and dropped
 confidence to near zero exactly when she was most definitely asleep.
 
-## The docs, and which ones you need
+## The docs, in the order they're useful
 
-Two kinds of writing in here. Keep them straight and you'll save yourself an hour.
+**Start with [docs/nap-detection.md](docs/nap-detection.md), section 0.** It's two
+paragraphs, and it tells you whether the rest of this repo applies to your house at
+all. The whole design rests on one household habit: *the nursery door gets closed
+when, and only when, she's put down*. That makes a door-close a deliberate human
+act rather than a passive condition, and everything else is built on top of it. If
+your nursery door sits closed all day, or stays open during naps, the state machine
+here won't work for you and no amount of sensor tuning will fix it. Better to learn
+that in two paragraphs than after buying hardware.
 
-**Read these to build it:**
+If that assumption holds for you, read in this order:
 
-| Doc | What it's for |
-|---|---|
-| [docs/nap-detection.md](docs/nap-detection.md) | The state machine, and the measurements behind it |
-| [docs/tablet-build.md](docs/tablet-build.md) | The parent unit: wake paths, kiosk setup, audio traps |
-| [docs/wall-remote.md](docs/wall-remote.md) | The Z-Wave remote that declares ground truth |
-| [frigate/README.md](frigate/README.md) | Camera and cry detection setup |
+| | Doc | What it gives you |
+|---|---|---|
+| 1 | [docs/nap-detection.md](docs/nap-detection.md) | The state machine and the measurements behind it. The core of the project. |
+| 2 | [frigate/README.md](frigate/README.md) | Camera and cry detection. Do this before the tablet, which displays a stream that has to exist first. |
+| 3 | [docs/tablet-build.md](docs/tablet-build.md) | The parent unit: wake paths, kiosk setup, and the audio traps that cost me the most time. |
+| 4 | [docs/wall-remote.md](docs/wall-remote.md) | Optional. A Z-Wave remote that declares ground truth so you can score the inference against reality. |
 
-**Skip these unless you're curious** — [docs/build-journal/](docs/build-journal/) is
+Then [Setup](#setup) below for the actual install steps.
+
+**Skip these unless you're curious.** [docs/build-journal/](docs/build-journal/) is
 the stream of construction: superseded briefs, options I weighed and dropped, and
 notes written to myself with task IDs from my own kanban board. One of them specs
 hardware that was never built. They're published because the reasoning is sometimes
