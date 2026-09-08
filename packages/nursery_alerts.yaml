@@ -19,9 +19,11 @@
 
 automation:
 - alias: Nursery — Baby crying (critical)
-  description: '⚠️ TEMPORARY AUDIENCE: notify target was narrowed from the full household group to a single device for the tablet build-out. REVERT to the full group once
-    the tablet is stable (docs/tablet-build.md §11). Decision: hold through the
-    N7 bake-in; the revert is an N7 EXIT CRITERION.
+  description: '⚠️ CHECK THE NOTIFY TARGET BEFORE YOU RELY ON THIS. It points at a single
+    device, not a household group. That is deliberate while you are still tuning
+    thresholds — a misfiring cry alert should wake one person, not everyone. Once
+    you trust it, widen this to your household notify group, or the other parent
+    never gets the alert.
 
 
     --- Frigate audio detection hears crying in the nursery for input_number.nursery_cry_qualify_seconds
@@ -137,7 +139,7 @@ automation:
 - alias: Nursery camera offline (heartbeat)
   description: '⚠️ TEMPORARY AUDIENCE: both notify targets narrowed notify.parents
     → notify.parents for the Nursery Monitor tablet build-out. REVERT to the full group once
-    the tablet is stable and complete (tracked in docs/tablet-build.md §11). --- RELIABILITY
+    the tablet is stable and complete (tracked in docs/build-journal/tablet-build-notes.md). --- RELIABILITY
     GUARD for the baby monitor. If camera.nursery is unavailable for 5 minutes the monitor is effectively
     dead and we would not know - a silent failure is the worst outcome for this device. FIXED at the time:
     the recovery branch used to fire on ANY return to ''recording'', so a 20-second ffmpeg blip produced
@@ -209,7 +211,7 @@ automation:
     on every off-transition, so it cannot answer ''when did she last cry?'' — same reason input_datetime.nursery_last_woke
     exists alongside the nap sensor. Stamps RAW cry-on events, not the 10s qualified cry the monitor
     tablet will use to wake: a two-second squawk is still a cry and belongs in the record. Consumers:
-    the Nursery Monitor tablet dashboard (docs/tablet-build.md, phase N3) and the v3 Nursery
+    the Nursery Monitor tablet dashboard (docs/tablet-build.md) and the v3 Nursery
     view.'
   triggers:
   - trigger: state
@@ -228,7 +230,7 @@ automation:
     for the same reason as automation.nursery_stamp_last_cry: binary_sensor.nursery_door_open''s own
     last_changed resets on every CLOSE, so while the door is shut it reports when it was shut — not
     when it was last opened, which is the question a parent is actually asking. Consumer: the nursery-monitor
-    kiosk dashboard (docs/tablet-build.md, phase N5). Mirrors the nursery_last_woke / nap-8
+    kiosk dashboard (docs/tablet-build.md). Mirrors the nursery_last_woke / nap-8
     house pattern.'
   triggers:
   - trigger: state

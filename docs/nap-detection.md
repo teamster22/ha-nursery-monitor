@@ -8,9 +8,7 @@ on. Dates are generalized; the numbers are real.
 > engineer, so read the config yourself before you run it.
 
 
-**Status:** this is the design doc, written before any of it was built. Grounded in 3 days of real history plus my answers.
-**Rev 2** — restructured around the night-bottle case, which turned out to simplify everything.
-Companion: [sensor-selection.md](sensor-selection.md). The load-cell build guide is deliberately not published — see the README.
+The superseded original brief is in [build-journal/sensor-selection.md](build-journal/sensor-selection.md); it specs hardware that was never built.
 
 ---
 
@@ -77,7 +75,7 @@ Two possible explanations:
 
 **This matters a lot.** A naive rule of "presence ⇒ she's awake" would have flipped her out of `asleep` for 2.5 minutes at 21:22 on a night when nothing happened. That's a false wake, at bedtime, in exactly the window where you'd most want to trust the sensor.
 
-**Fix (see §2): the door-open *event* is the entry trigger, not presence.** Doors don't open themselves. Presence is used to decide when the visit *ends*, not when it starts. That single choice makes the machine immune to radar bleed-through.
+**Fix (see section 2): the door-open *event* is the entry trigger, not presence.** Doors don't open themselves. Presence is used to decide when the visit *ends*, not when it starts. That single choice makes the machine immune to radar bleed-through.
 
 I can't fully resolve which explanation is right from 3 days. Shadow mode will.
 
@@ -121,7 +119,7 @@ It makes no difference whether the visit began from `awake` (bedtime) or from `a
 | `tending` | a visit is open — adult in the room, child awake or being settled | ~5 |
 | `settling` | visit closed, door shut, dark — timer running | 40–60 |
 | `asleep` | settled and stable | 80 (95 if declared) |
-| ~~`out`~~ | ~~household away~~ — **REJECTED, never built. See §6.** A sitter puts her down exactly the same way; this veto would wake her. | — |
+| ~~`out`~~ | ~~household away~~ — **REJECTED, never built. See section 6.** A sitter puts her down exactly the same way; this veto would wake her. | — |
 
 `tending` covers **bedtime put-downs, nap put-downs, night bottles, and morning pickups alike.** It's one state because they're one thing: an adult is in the room and the child is not reliably asleep. That is exactly the point-of-truth you asked for.
 
@@ -147,12 +145,12 @@ It makes no difference whether the visit began from `awake` (bedtime) or from `a
 Plus, orthogonally:
 
 - **wall-remote hold** → declare `asleep` / `awake` directly, confidence 95. Overrides everything.
-- **max-duration decay** → confidence sags past a plausible nap length. *(This replaces the rejected household-away veto — see §6.)*
+- **max-duration decay** → confidence sags past a plausible nap length. *(This replaces the rejected household-away veto — see section 6.)*
 - **max-duration decay** → if `asleep` beyond plausible (see below), decay confidence toward `unknown`.
 
 ### Why door-open is the entry trigger, not presence
 
-Because of §1④. Presence can fire through a closed door; **a closed door cannot open itself.** Keying entry on the door event makes the machine structurally immune to mmWave bleed-through, at the cost of missing a visit if the door sensor ever drops an event.
+Because of section 1④. Presence can fire through a closed door; **a closed door cannot open itself.** Keying entry on the door event makes the machine structurally immune to mmWave bleed-through, at the cost of missing a visit if the door sensor ever drops an event.
 
 That's the right trade: **a missed 2-minute visit is a much cheaper error than a phantom wake at bedtime.**
 
@@ -180,11 +178,11 @@ confidence = base(how we entered)
            + corroborations
 ```
 
-**Vetoes (hard → 0):** door open >2 min · Sonos playing · illuminance high & sustained. **NOT household-away — see §6.**
+**Vetoes (hard → 0):** door open >2 min · Sonos playing · illuminance high & sustained. **NOT household-away — see section 6.**
 
-**Corroborations (+, small):** illuminance ≈ 0 · white noise on (decaying weight — see §5).
+**Corroborations (+, small):** illuminance ≈ 0 · white noise on (decaying weight — see section 5).
 
-**duration_plausibility** — see §3a. Rebuilt after I pushed back on the caps; the pushback surfaced two real bugs.
+**duration_plausibility** — see section 3a. Rebuilt after I pushed back on the caps; the pushback surfaced two real bugs.
 
 ---
 
@@ -196,7 +194,7 @@ The pushback: *"Some naps may exceed 3 hrs, and some overnight sleeps may exceed
 
 **The cap marks "implausible," not "typical max."** The decay's job is *fault detection* — catching a stuck state machine, a dropped door event, a dead sensor battery. It is **not** a model of how long she sleeps.
 
-Set the cap near the typical maximum and it fires during ordinary long sleeps — producing low confidence *precisely when she is actually asleep*. That is a **false negative**, and per §6 the false negative is the error that **wakes the child**. Same failure direction as the rejected household-away veto. I'd made the same mistake twice.
+Set the cap near the typical maximum and it fires during ordinary long sleeps — producing low confidence *precisely when she is actually asleep*. That is a **false negative**, and per section 6 the false negative is the error that **wakes the child**. Same failure direction as the rejected household-away veto. I'd made the same mistake twice.
 
 ### The three bugs
 
@@ -253,42 +251,29 @@ So **"mute notifications at ≥90" is not reachable by inference alone.** You pr
 
 ---
 
-## 4. ⚠️ The one-nap transition: do NOT build a time-of-day prior
+## 4. Two signals I deliberately did not use
 
-You're stable on two naps and expect the one-nap transition within ~2 months.
+**Time of day.** This is the signal a naive design leans on hardest, and it's the
+one with a known expiry date. Nap schedules change — the two-nap to one-nap
+transition will invalidate any hard-coded window, and it fails in the most annoying
+way possible: mostly right, so you don't notice for weeks. The door doesn't care
+what time it is. It's an invariant, so lean on it instead.
 
-**The signal a naive design leans on hardest — time of day — is precisely the one with a known expiry date.** A hard-coded nap window (or a `schedule` helper) will quietly start lying to you in eight weeks, and it will lie in the most annoying possible way: it'll be *mostly* right, so you won't notice immediately.
+The only clock-derived input here is a day/night boolean, and it only switches the
+duration-plausibility curve. It never gates the state. When your nap schedule
+changes, this design needs zero edits.
 
-**The door doesn't care what time it is.** It's an invariant. Lean on it.
+**The white-noise machine.** I have one and chose not to wire it in. It adds no
+state the door and presence pair doesn't already carry, and mine is unreliable in
+an asymmetric way — switched on early, forgotten and left on late. Adding a
+known-unreliable input to a system whose primary signal is strong is how you make a
+good system worse.
 
-Recommendation: **omit the time-of-day prior from v1 entirely.** It buys very little (the door is already near-deterministic) and it's a liability with a scheduled failure date. The only clock-derived input worth keeping is `input_boolean.nighttime` — because *night* is stable even as *nap times* move — and only to switch the duration-plausibility curve, never to gate the state.
-
-When the transition comes, this design needs **zero changes.**
-
----
-
-## 5. The white-noise machine — hold off
-
-Direct answer to your offer: **don't install it this afternoon. It's not load-bearing, and I don't want it to become load-bearing.**
-
-Reasoning:
-
-- The door + presence pair already carries the signal. White noise adds no *state* the machine doesn't have.
-- It doesn't fix the night bottle (presence does).
-- It doesn't fix the one-nap transition (the door does).
-- **And you've told me it's unreliable in a specific, asymmetric way** — on early (books), off late (forgotten). Adding a known-unreliable input to a system whose primary signal is strong is how you make a good system worse.
-
-If you do add it (it's free and takes 30 minutes), then **hard rule: it may never create or destroy an `asleep` state.** Corroboration only, small weight, decaying with elapsed time. Never a veto. Score the **edges**, not the state:
-
-| Signal | Correct use |
-|---|---|
-| ON transition | **Precursor** — "a put-down is likely within ~30 min." Raises the prior. Not evidence of sleep. |
-| Steady ON | Weak corroboration with a **decaying** weight (the "forgot to turn it off" hypothesis grows over time) |
-| OFF transition | Reliable negative *when it fires* — but **lagging**, so never read its absence as evidence |
-
-**Where it would genuinely earn its keep:** as a *separate*, low-stakes trigger to pre-dim the hall lights during wind-down — before the nap sensor commits to anything. That's a nice use. It just isn't this project.
-
-Let shadow mode tell us if it adds anything. My prediction: it won't.
+If you wire yours in anyway, one hard rule: **it may never create or destroy an
+`asleep` state.** Score the edges, not the steady state. The ON transition is a
+precursor ("a put-down is likely soon"), not evidence of sleep. Steady-on is weak
+corroboration at best, and its weight should decay, because the "someone forgot to
+turn it off" hypothesis grows with time.
 
 ---
 
@@ -345,7 +330,7 @@ This is strictly better because it's **generic**: it catches the stuck-state cas
 | 2 | **Smoothed illuminance** | Raw lux swings 400→680 within seconds. Add a `statistics` mean-over-5-min helper (per the project's "prefer smoothed sensors" rule) and use **that**, not `light.nursery_lights` — the light group goes `unavailable` frequently, and the illuminance sensor rides the *same device* as presence, so it's one less integration to fail. |
 | 3 | **Ground truth** | Bind `hold_top_left` → "she's down", `hold_bottom_left` → "she's up". *(Baby Buddy was removed — the old `bb_sleep_helper` fire is gone and must not be re-added.)* |
 | 4 | **State machine** | `input_select.nursery_state`, `input_datetime.nursery_sleep_started`, `input_number.nursery_confidence` |
-| 5 | **Four transition automations** | Per §2 |
+| 5 | **Four transition automations** | Per section 2 |
 | 6 | **Shadow mode, 2 weeks — drives nothing** | Log inferred state + confidence + button truth + all inputs |
 | 7 | **Tune, then wire consumers** | |
 
@@ -354,7 +339,7 @@ This is strictly better because it's **generic**: it catches the stuck-state cas
 - The button stops being a signal and becomes the **training label**.
 - You get the real **nap-duration distribution** for the plausibility curve — which you need *twice*, since it'll change at the one-nap transition.
 - You can check **calibration**: when it says 80, is she actually asleep ~80% of the time? An uncalibrated confidence score is a vibe, not a probability.
-- **It resolves the §1④ anomaly** — two weeks will show whether presence-through-a-closed-door is a recurring radar artifact or a one-off missed door event.
+- **It resolves the section 1④ anomaly** — two weeks will show whether presence-through-a-closed-door is a recurring radar artifact or a one-off missed door event.
 - **It's the same harness you'll need to prove the load cells are better.** Build it now, and the hardware lands in a system that can immediately grade it.
 
 ### Consumer thresholds — set by the cost of being wrong

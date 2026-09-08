@@ -26,7 +26,7 @@ automation:
     that to the hardware — so the on-screen controls moved a number and changed no sound. Mute = helper
     0 = volume_level 0. Note Fully does NOT report volume back to HA, so the helper is what HA believes;
     the tablet''s physical volume keys change the device directly and will drift from it (accepted —
-    docs/tablet-build.md §3.8). mode: restart so a rapid run of taps only applies the final
+    docs/tablet-build.md). mode: restart so a rapid run of taps only applies the final
     value.'
   triggers:
   - trigger: state
@@ -248,7 +248,7 @@ automation:
 
 
     WHY THIS IS NEEDED: Android reserves KEYCODE_POWER at the system level — no app, Fully included,
-    can intercept or remap it (§3.8). It cannot be prevented, so it must be FOLLOWED. Without this automation
+    can intercept or remap it (see docs/tablet-build.md, hardware buttons). It cannot be prevented, so it must be FOLLOWED. Without this automation
     a power press desynchronises everything: the screen is dark but input_boolean.nursery_monitor_active
     still says ACTIVE, so the dashboard shows no black overlay, the inactivity timer keeps running,
     the volume is still up, and the next cry finds the machine in a state it does not expect.
@@ -331,10 +331,10 @@ automation:
 
 
     It also fires when the battery is let run flat on the couch — correct behavior, not a bug. automation.nursery_monitor_low_battery
-    at 20% is what makes it PREDICTABLE rather than merely annoying (§3.7).
+    at 20% is what makes it PREDICTABLE rather than merely annoying (see docs/tablet-build.md, floating device).
 
 
-    ⚠️ NO ANTI-SPAM BOOLEAN, deliberately — the plan (§7.3) specified one and it is not needed. A `for:`-qualified
+    ⚠️ NO ANTI-SPAM BOOLEAN, deliberately — the plan (see docs/build-journal/tablet-build-notes.md) specified one and it is not needed. A `for:`-qualified
     state trigger fires ONCE per transition into the matching state; it cannot repeat while the tablet
     stays offline. An extra input_boolean would be another piece of state to keep in sync, with a failure
     mode of its own (stuck ''already alerted'' = suppressed alerts, the fail-silent trap again). If
@@ -347,9 +347,9 @@ automation:
     fine, silent is not.
 
 
-    AUDIENCE: notify.parents per the temporary narrowing (§11.0). ⚠️ This one should arguably go
+    AUDIENCE: notify.parents per the temporary narrowing (temporary, see note below). ⚠️ This one should arguably go
     to notify.parents on revert — ''the monitor is dead'' is not I-only news, unlike a tablet
-    battery warning. Decide at the N7 exit review.
+    battery warning. Decide at the end of the bake-in.
 
 
     Watches the battery sensor because it always carries a value when the tablet is reachable, making
@@ -415,8 +415,8 @@ automation:
   description: 'Warns at 20% on battery so the tablet never silently dies mid-float.
 
 
-    PURPOSE (§3.7): this is a FLOATING device — home base is the bedside, but it moves around the house,
-    and a live video decode 24/7 is a real drain (expect ~5-8h unplugged, to be measured in N7). Without
+    PURPOSE (see docs/tablet-build.md, floating device): this is a FLOATING device — home base is the bedside, but it moves around the house,
+    and a live video decode 24/7 is a real drain (expect ~5-8h unplugged, to be measured during bake-in). Without
     this warning the first sign of a flat battery is the OFFLINE alert, i.e. the monitor has ALREADY
     stopped watching. This alert exists to turn that from a surprise into a chore.
 
@@ -426,8 +426,7 @@ automation:
 
 
     AUDIENCE: notify.parents — and unlike the offline alert, this one should STAY I-only after
-    the §11.0 revert. ''Go plug the tablet in'' is a chore for whoever maintains the system; it is not
-    news my wife needs at 2am.
+    the revert described below. ''Go plug the tablet in'' is a chore for whoever maintains the system; it is not news the whole household needs at 2am.
 
 
     Not critical priority, deliberately: 20% is roughly an hour of warning, which does not warrant bypassing
@@ -593,7 +592,7 @@ automation:
 
 
     SAFETY ARGUMENT FOR WHY GOING DARK HERE IS ACCEPTABLE EVEN IF THE ROOM IS NOT TRULY EMPTY: cry alerts
-    are ALREADY suppressed while the door is open (§7.35), so a dormant panel adds no new blind spot
+    are ALREADY suppressed while the door is open (see docs/build-journal/tablet-build-notes.md), so a dormant panel adds no new blind spot
     during exactly that window. When the door closes, the 90s grace runs, alerts re-arm, and the next
     qualified cry wakes the panel.
 
@@ -828,7 +827,7 @@ script:
       each run is now a sub-millisecond helper write, so the queue drains instantly.
 
 
-      Note 0 is the DORMANT brightness in the §3 state machine: holding this down is the manual equivalent
+      Note 0 is the DORMANT brightness in the dormant/active state machine: holding this down is the manual equivalent
       of the Sleep button, minus the state-flag change.'
     sequence:
     - action: input_number.set_value
@@ -845,7 +844,7 @@ script:
       buttons call this rather than duplicating the steps.
 
 
-      ⚠️ DORMANT IS *NOT* SCREEN-OFF (plan §3.1). Dormant = brightness 0 + volume 0 over a STILL-PLAYING
+      ⚠️ DORMANT IS *NOT* SCREEN-OFF (see docs/tablet-build.md). Dormant = brightness 0 + volume 0 over a STILL-PLAYING
       video element, black overlay on top. The stream never stops, which is what makes the normal wake
       sub-second.
 
@@ -889,7 +888,7 @@ script:
 
       Previously this checked binary_sensor.nursery_presence_sensor alone. It now uses the composed
       adult-presence sensor (nursery_state == ''tending'' OR door open OR presence+person together),
-      which covers the SAME acoustic-feedback case from §3.7 — tablet carried into the nursery, speaker
+      which covers the SAME acoustic-feedback case from the acoustic-feedback guard — tablet carried into the nursery, speaker
       feeds the camera mic, Frigate re-triggers, self-sustaining loop — AND I''s broader principle
       that the relay should not squawk while an adult is in there soothing her.
 
@@ -984,12 +983,12 @@ script:
     description: "ACTIVE -> DORMANT. The single place the sleep transition lives.\n\n⚠️ THIS SCRIPT\
       \ DELIBERATELY DOES *NOT* TURN THE SCREEN OFF. Do not 'fix' that by adding switch.turn_off. Dormant\
       \ is brightness 0 + volume 0 over a STILL-PLAYING video element with a black overlay card on top\
-      \ (plan §3.1). Turning the screen off would:\n  1. suspend media playback, so the stream has to\
+      \ (see docs/tablet-build.md). Turning the screen off would:\n  1. suspend media playback, so the stream has to\
       \ be re-established on wake — 3-8s instead of sub-second, which is the difference between this\
       \ and an OEM monitor;\n  2. risk Android resuming audio uncontrolled on wake;\n  3. make a cry\
       \ event's response visibly slower at exactly the moment it matters.\nThe cost is that the panel\
       \ may faintly glow at brightness 0 (Android brightness 0 is often 'dimmest', not off) — the black\
-      \ overlay covers that. §3.3 says revisit true screen-off ONLY if it visibly glows on this unit.\n\
+      \ overlay covers that. Revisit true screen-off ONLY if it visibly glows on this unit.\n\
       \n=== BRIGHTNESS GOES THROUGH THE HELPER, NOT THE DEVICE (changed at the time) ===\nSets input_number.nursery_monitor_brightness\
       \ to 0; automation.nursery_monitor_mirror_brightness_to_tablet performs the device write. Do NOT\
       \ restore a direct number.set_value here — the Fully number entity round-trips in ~20-30s, and\
@@ -1005,7 +1004,7 @@ script:
         entity_id: media_player.floating_devices_nursery_monitor_display
       data:
         volume_level: 0
-      note: Audio ceases while dormant — desired behavior per §3.1, matching the Eufy E10.
+      note: Audio ceases while dormant — desired behavior by design, matching the Eufy E10.
     - action: input_number.set_value
       target:
         entity_id: input_number.nursery_monitor_brightness
@@ -1017,7 +1016,7 @@ script:
       target:
         entity_id: input_boolean.nursery_monitor_active
       note: Raises the full-screen black overlay. MUST stay tappable — with motion wake dropped, touch
-        is the only manual way back in (§3.2).
+        is the only manual way back in (see docs/tablet-build.md, the two wake paths).
     - action: timer.cancel
       target:
         entity_id: timer.nursery_monitor_inactivity
@@ -1050,7 +1049,7 @@ script:
       the end.
 
 
-      ⚠️ IT ALSO DELIBERATELY IGNORES THE ACOUSTIC-FEEDBACK GUARD (§3.7) that script.nursery_monitor_wake
+      ⚠️ IT ALSO DELIBERATELY IGNORES THE ACOUSTIC-FEEDBACK GUARD (see docs/tablet-build.md, floating device) that script.nursery_monitor_wake
       applies — wake sets volume 0 if the tablet is in the nursery, and this script then overrides it
       to 1.0. Intentional: if the tablet IS in the nursery you want to hear it and will immediately
       find it. Residual risk is the speaker feeding the camera mic and tripping Frigate; the chime is

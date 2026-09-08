@@ -1,14 +1,16 @@
 # Dashboard layout research
 
-What commercial baby monitors put on screen, and what I copied.
+> **Build journal.** Design exploration written before the dashboard existed. It
+> weighs three layout options; Option A ("dark cockpit") is the one that shipped.
+> The built result is in [../tablet-build.md](../tablet-build.md).
 
-> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
+> Read [../../DISCLAIMER.md](../../DISCLAIMER.md) first. Short version: not a medical
 > device, and an LLM wrote essentially all of the code here. I'm not a software
 > engineer, so read the config yourself before you run it.
 
 
 **Purpose:** inspiration and a decision framework for laying out the `nursery-monitor` kiosk. Written after a long build session that produced a working-but-unsatisfying layout.
-**Companion:** [tablet-build.md](tablet-build.md) (the build).
+**Companion:** [tablet-build.md](../tablet-build.md) (the build).
 
 ---
 

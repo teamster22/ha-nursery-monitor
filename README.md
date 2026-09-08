@@ -150,6 +150,26 @@ dead sensor battery, and I had to rebuild it once after setting the caps near th
 typical maximum, which fired the decay during ordinary long sleeps and dropped
 confidence to near zero exactly when she was most definitely asleep.
 
+## The docs, and which ones you need
+
+Two kinds of writing in here. Keep them straight and you'll save yourself an hour.
+
+**Read these to build it:**
+
+| Doc | What it's for |
+|---|---|
+| [docs/nap-detection.md](docs/nap-detection.md) | The state machine, and the measurements behind it |
+| [docs/tablet-build.md](docs/tablet-build.md) | The parent unit: wake paths, kiosk setup, audio traps |
+| [docs/wall-remote.md](docs/wall-remote.md) | The Z-Wave remote that declares ground truth |
+| [frigate/README.md](frigate/README.md) | Camera and cry detection setup |
+
+**Skip these unless you're curious** — [docs/build-journal/](docs/build-journal/) is
+the stream of construction: superseded briefs, options I weighed and dropped, and
+notes written to myself with task IDs from my own kanban board. One of them specs
+hardware that was never built. They're published because the reasoning is sometimes
+useful and because a repo that only shows the answer teaches nothing. They are not
+instructions.
+
 ## What you need
 
 | | |
@@ -230,9 +250,10 @@ The cry qualifier started at 10 seconds. I cut it to 5 after living with it, bec
 
 **The load-cell crib sensor.** I designed it, priced the BOM, and wrote a build
 guide. Then the software approach shipped and turned out to be enough, so the
-hardware was never built. Publishing a build guide for hardware nobody has ever
-assembled is a good way to burn the first person who tries it. The design notes are
-mentioned in the docs as "designed, then made unnecessary."
+hardware was never built. That brief is still in the build journal, clearly marked
+as unbuilt, because the reasoning about which signals are useless holds up. Do not
+build from its BOM — nobody has ever assembled it, and a build guide nobody has
+followed is a good way to burn the first person who tries.
 
 **The household-away veto.** The idea was to suppress nap detection when nobody's
 home. I rejected it: a sitter puts her down exactly the same way, and this veto

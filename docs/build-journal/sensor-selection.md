@@ -1,12 +1,16 @@
-# Sensor selection
+# Sensor selection — the original brief
 
-The original brief on what to sense and what not to bother sensing. Several of its
-conclusions were later overturned by real data — see
-[nap-detection.md](nap-detection.md), which is the current design. This is kept
-because the reasoning about *why* certain signals are useless is still correct, and
-because a design doc that only shows the answer teaches nothing.
+> **Build journal. Superseded, and it specs hardware that was never built.**
+>
+> The load-cell crib sensor below was designed, priced, and never assembled. The
+> software approach in [../nap-detection.md](../nap-detection.md) shipped and made
+> it unnecessary. **Do not build from the BOM or the mechanical section** — nobody
+> has ever assembled this, and a build guide nobody has followed will burn you.
+>
+> Kept because the reasoning about *why* certain signals are useless is still
+> correct, and because a design doc that only shows the answer teaches nothing.
 
-> Read [../DISCLAIMER.md](../DISCLAIMER.md) first. Short version: not a medical
+> Read [../../DISCLAIMER.md](../../DISCLAIMER.md) first. Short version: not a medical
 > device, and an LLM wrote essentially all of the code here. I'm not a software
 > engineer, so read the config yourself before you run it.
 
