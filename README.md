@@ -190,7 +190,7 @@ instructions.
 | A tablet | optional. Without one you still get the nap machine and phone alerts |
 | Lux sensor | optional, used only as a veto |
 
-The tablet half needs Fully Kiosk Browser (the paid PLUS licence, for the remote
+The tablet half needs Fully Kiosk Browser (the paid PLUS license, for the remote
 admin API) plus these from HACS. The dashboard will render broken without all of
 them:
 
