@@ -13,10 +13,10 @@
 #       packages: !include_dir_named packages
 #
 # BEFORE IT WILL RUN, replace these with your own entities (see README §Setup):
-#   binary_sensor.nursery_door_contact   your nursery door contact sensor
-#   binary_sensor.nursery_presence_sensor your mmWave/PIR presence sensor
-#   sensor.nursery_light_level_smoothed   your lux sensor (smoothed)
-#   notify.parents                        a notify group of the parents' phones
+#   binary_sensor.nursery_door_open        your nursery door contact sensor
+#   binary_sensor.nursery_presence_sensor  your mmWave/PIR presence sensor
+#   sensor.nursery_light_level_smoothed    your lux sensor (smoothed)
+#   notify.parents                         a notify group of the parents' phones
 #
 # ⚠️ Read DISCLAIMER.md first. This is convenience automation. It is NOT a
 # breathing monitor, NOT a medical device, and must never be relied on for a

@@ -190,8 +190,19 @@ instructions.
 | A tablet | optional. Without one you still get the nap machine and phone alerts |
 | Lux sensor | optional, used only as a veto |
 
-The tablet half needs Fully Kiosk Browser plus these from HACS: `browser_mod`,
-`card-mod`, `advanced-camera-card`, `bubble-card`.
+The tablet half needs Fully Kiosk Browser (the paid PLUS licence, for the remote
+admin API) plus these from HACS. The dashboard will render broken without all of
+them:
+
+| HACS package | Used for |
+|---|---|
+| `advanced-camera-card` | the camera view itself |
+| `card-mod` | the dormant black overlay and the control bar's show/hide |
+| `button-card` | the control bar buttons |
+| `stack-in-card` | the status stack, top left |
+| `mushroom` | the chips and template cards in the status stack |
+| `browser_mod` | the wake/navigate calls |
+| `bubble-card` | the control bar container |
 
 ## Setup
 
@@ -216,22 +227,63 @@ The tablet half needs Fully Kiosk Browser plus these from HACS: `browser_mod`,
          - service: mobile_app_her_phone
    ```
 
-3. Replace the placeholder entity IDs with your own. Grep the packages for these:
+3. Replace my entity IDs with your own. These are real IDs from my instance, not
+   `<PLACEHOLDER>` tokens, so grep for each one and swap it:
 
-   | Placeholder | What it is |
+   | Entity in this repo | What it is on your side |
    |---|---|
    | `binary_sensor.nursery_door_open` | your door contact |
-   | `binary_sensor.nursery_presence_sensor` | your presence sensor |
+   | `binary_sensor.nursery_presence_sensor` | your mmWave or PIR presence sensor |
    | `sensor.nursery_light_level_smoothed` | your lux sensor, smoothed |
+   | `sensor.nursery_presence_sensor_light_sensor_light_level` | the raw lux sensor feeding the smoothed one |
+   | `binary_sensor.nursery_crying_sound` | Frigate's audio `crying` binary sensor |
    | `binary_sensor.nursery_person_occupancy` | Frigate person detection |
-   | `binary_sensor.nursery_crib_baby_occupancy` | Frigate crib zone |
-   | `<TABLET_IP>`, `<YOUR_BROWSER_ID>`, `<YOUR_DEVICE_ID>` | tablet specifics |
+   | `binary_sensor.nursery_baby_occupancy`, `binary_sensor.nursery_all_occupancy` | Frigate zone sensors |
+   | `camera.nursery` | your camera entity |
+
+   **The tablet entities need special attention.** Every Fully Kiosk entity in
+   `packages/nursery_monitor.yaml` and `dashboards/nursery-monitor.yaml` is named
+   after my device, which lives in an HA area called "Floating Devices." You'll see
+   43 references shaped like this:
+
+   ```
+   media_player.floating_devices_nursery_monitor_display
+   switch.floating_devices_nursery_monitor_display_screen
+   sensor.floating_devices_nursery_monitor_display_battery
+   binary_sensor.floating_devices_nursery_monitor_display_plugged_in
+   sensor.floating_devices_nursery_monitor_display_current_page
+   ```
+
+   Yours will be named after whatever you call your tablet. The quickest fix is a
+   find-and-replace of the prefix `floating_devices_nursery_monitor_display` with
+   your own, after you've added the Fully Kiosk integration and seen what it
+   actually creates:
+
+   ```bash
+   grep -rl floating_devices_nursery_monitor_display packages/ dashboards/ \
+     | xargs sed -i 's/floating_devices_nursery_monitor_display/YOUR_TABLET_ENTITY_SUFFIX/g'
+   ```
 
 4. Restart Home Assistant. `binary_sensor.nursery_nap` should appear.
 
 5. For the camera and cry detection, see [frigate/README.md](frigate/README.md).
 
-6. For the tablet, see [docs/tablet-build.md](docs/tablet-build.md). Copy
+6. Install the alert chime. The automations play it from
+   `/local/nursery_monitor/nursery_alert_chime.mp3`, which means it has to live at
+   `config/www/nursery_monitor/` on your HA box. The repo ships a `.wav`, so
+   convert it:
+
+   ```bash
+   mkdir -p config/www/nursery_monitor
+   ffmpeg -i audio/nursery_alert_chime.wav -b:a 128k \
+     config/www/nursery_monitor/nursery_alert_chime.mp3
+   ```
+
+   Skip this and the cry alert still fires on your phone, but the tablet stays
+   silent and nothing in the HA log tells you why. `audio/chime_generator.py`
+   regenerates the tone from scratch if you'd rather tune it.
+
+7. For the tablet, see [docs/tablet-build.md](docs/tablet-build.md). Copy
    `themes/nursery_monitor.yaml` into `config/themes/` and paste
    `dashboards/nursery-monitor.yaml` into a new dashboard's raw config editor.
 
